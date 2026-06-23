@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import '../../../../core/utils/secure_storage_service.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../../../core/network/api_client.dart';
+import '../../../../core/network/token_storage_impl.dart';
 
 enum AuthStatus {
   initial,
@@ -15,13 +17,16 @@ class AuthProvider extends ChangeNotifier {
   AuthProvider({
     AuthRepository? authRepository,
     SecureStorageService? secureStorage,
+    TokenStorage? tokenStorage,
   })  : _authRepository = authRepository ?? AuthRepository(),
-        _secureStorage = secureStorage ?? SecureStorageService() {
+        _secureStorage = secureStorage ?? SecureStorageService(),
+        _tokenStorage = tokenStorage ?? SharedPreferencesTokenStorage() {
     checkAuthStatus();
   }
 
   final AuthRepository _authRepository;
   final SecureStorageService _secureStorage;
+  final TokenStorage _tokenStorage;
 
   AuthStatus _status = AuthStatus.initial;
   UserModel? _currentUser;
@@ -36,15 +41,20 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    final accessToken = await _secureStorage.readAccessToken();
+    try {
+      final accessToken = await _secureStorage.readAccessToken();
 
-    if (accessToken != null && accessToken.isNotEmpty) {
-      _status = AuthStatus.authenticated;
-    } else {
+      if (accessToken != null && accessToken.isNotEmpty) {
+        await _tokenStorage.saveAccessToken(accessToken);
+        _status = AuthStatus.authenticated;
+      } else {
+        _status = AuthStatus.unauthenticated;
+      }
+    } catch (e) {
       _status = AuthStatus.unauthenticated;
+    } finally {
+      notifyListeners();
     }
-
-    notifyListeners();
   }
 
   Future<bool> login({required String email, required String password}) async {
@@ -57,6 +67,7 @@ class AuthProvider extends ChangeNotifier {
 
       final accessToken = await _secureStorage.readAccessToken();
       if (accessToken != null && accessToken.isNotEmpty) {
+        await _tokenStorage.saveAccessToken(accessToken);
         _status = AuthStatus.authenticated;
         notifyListeners();
         return true;
@@ -111,6 +122,10 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       await _authRepository.confirmEmail(email: email, otp: otp);
+      final accessToken = await _secureStorage.readAccessToken();
+      if (accessToken != null && accessToken.isNotEmpty) {
+        await _tokenStorage.saveAccessToken(accessToken);
+      }
       _status = AuthStatus.authenticated;
       notifyListeners();
       return true;
@@ -123,10 +138,16 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    await _secureStorage.clearTokens();
-    _currentUser = null;
-    _status = AuthStatus.unauthenticated;
-    _errorMessage = null;
-    notifyListeners();
+    try {
+      await _secureStorage.clearTokens();
+      await _tokenStorage.clearAccessToken();
+    } catch (e) {
+      debugPrint('Error clearing tokens during logout: $e');
+    } finally {
+      _currentUser = null;
+      _status = AuthStatus.unauthenticated;
+      _errorMessage = null;
+      notifyListeners();
+    }
   }
 }

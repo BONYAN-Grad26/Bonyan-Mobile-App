@@ -2,73 +2,170 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../onboarding/data/models/health_metric_model.dart';
-import '../../../onboarding/data/repositories/metrics_repository.dart';
+import '../../../../core/providers/providers.dart';
+import '../../../../core/utils/ui_helpers.dart';
 import '../widgets/metric_card.dart';
 
 class HomeTab extends StatefulWidget {
-  const HomeTab({super.key});
+  final void Function(int)? onNavigate;
+
+  const HomeTab({super.key, this.onNavigate});
 
   @override
   State<HomeTab> createState() => _HomeTabState();
 }
 
 class _HomeTabState extends State<HomeTab> {
-  final MetricsRepository _metricsRepository = MetricsRepository();
+  bool _isGenerating = false;
+  String _generationStep = '';
 
-  HealthMetricModel? _metrics;
-  bool _isLoading = true;
-  String? _errorMessage;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadMetrics();
-  }
-
-  Future<void> _loadMetrics() async {
+  Future<void> _generatePlans() async {
     setState(() {
-      _isLoading = true;
-      _errorMessage = null;
+      _isGenerating = true;
+      _generationStep = 'Generating Diet Plan (1/2)...';
     });
 
     try {
-      final profile = await _metricsRepository.getMyHealthProfile();
-      setState(() {
-        _metrics = profile;
-      });
+      final dietProvider = context.read<DietPlanProvider>();
+      final workoutProvider = context.read<WorkoutProvider>();
+      
+      final todayStr = DateTime.now().toIso8601String().split('T')[0];
+
+      final dietResult = await dietProvider.generateWeeklyPlan(startDate: todayStr, weekNumber: 1);
+      
+      if (!dietResult) {
+        if (mounted) {
+          final error = dietProvider.generationError ?? dietProvider.errorMessage ?? 'Failed to generate diet plan.';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error)),
+          );
+          if (dietProvider.generationError != null) {
+            _loadData();
+          }
+        }
+        return;
+      }
+
+      if (mounted) {
+        setState(() {
+          _generationStep = 'Generating Workout Plan (2/2)...';
+        });
+      }
+
+      final workoutResult = await workoutProvider.generateWeeklyPlan();
+
+      if (mounted) {
+        if (!workoutResult) {
+          final error = workoutProvider.generationError ?? workoutProvider.errorMessage ?? 'Failed to generate workout plan.';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error)),
+          );
+          if (workoutProvider.generationError != null) {
+            await _loadData();
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Weekly plan generated successfully!')),
+          );
+          await _loadData();
+        }
+      }
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating plans: $e')),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
-          _isLoading = false;
+          _isGenerating = false;
+          _generationStep = '';
         });
       }
     }
   }
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
+  }
+
+  Future<void> _loadData() async {
+    final profileProvider = context.read<ProfileProvider>();
+    final dietProvider = context.read<DietPlanProvider>();
+    final workoutProvider = context.read<WorkoutProvider>();
+    final authProvider = context.read<AuthProvider>();
+
+    final futures = <Future<void>>[
+      profileProvider.fetchMyHealthProfile(),
+      dietProvider.fetchTodayPlan(),
+      workoutProvider.fetchCurrentWorkoutPlan(),
+    ];
+    
+    await Future.wait(futures);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+    final profileProvider = context.watch<ProfileProvider>();
+    final dietProvider = context.watch<DietPlanProvider>();
+    final workoutProvider = context.watch<WorkoutProvider>();
+
     final colorScheme = Theme.of(context).colorScheme;
+
+    // Loading State
+    if (profileProvider.isLoading || dietProvider.isLoading || workoutProvider.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    // Error State
+    if (profileProvider.errorMessage != null || 
+        dietProvider.errorMessage != null || 
+        workoutProvider.errorMessage != null) {
+      final error = profileProvider.errorMessage ?? 
+                    dietProvider.errorMessage ?? 
+                    workoutProvider.errorMessage;
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+            const SizedBox(height: 16),
+            Text(error ?? 'An error occurred', textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadData,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
 
     final userName = authProvider.currentUser?.firstName;
     final greetingName = (userName == null || userName.isEmpty) ? 'Alex' : userName;
 
-    final int caloriesCurrent = 1850;
-    final int proteinCurrent = 95;
-    const int waterCurrent = 6;
-    const int stepsCurrent = 8234;
-    final int caloriesGoal = _metrics?.dailyCalorieTarget ?? 2200;
-    const int proteinGoal = 150;
+    final metrics = profileProvider.healthMetrics;
+    
+    // Goals from health profile
+    final int caloriesGoal = metrics?.dailyCalorieTarget ?? 2200;
+    final int proteinGoal = metrics?.weightKg != null ? (metrics!.weightKg! * 2).round() : 150;
     const int waterGoal = 8;
     const int stepsGoal = 10000;
 
+    // Current progress (0 for empty states)
+    const int caloriesCurrent = 0;
+    const int proteinCurrent = 0;
+    const int waterCurrent = 0;
+    const int stepsCurrent = 0;
+
     return RefreshIndicator(
-      onRefresh: _loadMetrics,
+      onRefresh: _loadData,
       child: CustomScrollView(
         slivers: [
           SliverAppBar(
@@ -80,7 +177,6 @@ class _HomeTabState extends State<HomeTab> {
             elevation: 0,
             flexibleSpace: FlexibleSpaceBar(
               titlePadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-              // 100% Safe Native Title
               title: Text(
                 'Good morning, $greetingName!',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -147,33 +243,66 @@ class _HomeTabState extends State<HomeTab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Today’s AI Recommendations',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(color: colorScheme.primary.withOpacity(0.12)),
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  _buildRecommendationCard(
-                    context,
-                    colorScheme.primary,
-                    'Increase Water Intake',
-                    'You’re 2 cups behind your daily goal. Stay hydrated!',
-                  ),
-                  const SizedBox(height: 12),
-                  _buildRecommendationCard(
-                    context,
-                    colorScheme.secondary,
-                    'You’re Doing Great!',
-                    'You’ve completed 2 of your 3 scheduled workouts this week.',
-                  ),
-                  const SizedBox(height: 12),
-                  _buildRecommendationCard(
-                    context,
-                    colorScheme.tertiary,
-                    'Perfect Nutrition',
-                    'Your macros are perfectly balanced for muscle gain. Keep it up!',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Your Weekly Plan is Ready to Generate',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Tap below to let our AI build your personalized 7-day diet and workout schedule based on your health metrics.',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurface.withOpacity(0.70),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _isGenerating ? null : _generatePlans,
+                            style: ElevatedButton.styleFrom(
+                              minimumSize: Size.zero,
+                              backgroundColor: colorScheme.primary,
+                              foregroundColor: colorScheme.onPrimary,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            child: _isGenerating
+                                ? Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        height: 18,
+                                        width: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: colorScheme.onPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(_generationStep, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    ],
+                                  )
+                                : const Text('Generate AI Plans', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -234,62 +363,24 @@ class _HomeTabState extends State<HomeTab> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  _buildUpcomingCard(context, 'Upper Body Workout', 'Today at 6:00 PM', colorScheme.primary),
+                  _buildUpcomingCard(
+                    context, 
+                    workoutProvider.todayWorkout?.exercises?.firstOrNull?.name ?? 'Upper Body Workout', 
+                    'Today at 6:00 PM', 
+                    colorScheme.primary,
+                  ),
                   const SizedBox(height: 12),
-                  _buildUpcomingCard(context, 'Dinner Meal Plan', 'In 2 hours', colorScheme.secondary),
+                  _buildUpcomingCard(
+                    context, 
+                    dietProvider.todayPlan?.meals?.firstOrNull?.name ?? 'Dinner Meal Plan', 
+                    'In 2 hours', 
+                    colorScheme.secondary,
+                  ),
                   const SizedBox(height: 24),
                   _buildHealthScoreCard(context, 'Overall Health Score', 85, colorScheme),
                   const SizedBox(height: 30),
                 ],
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecommendationCard(BuildContext context, Color accent, String title, String subtitle) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            margin: const EdgeInsets.only(top: 6, right: 12),
-            decoration: BoxDecoration(
-              color: accent,
-              shape: BoxShape.circle,
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  subtitle,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurface.withOpacity(0.72),
-                  ),
-                ),
-              ],
             ),
           ),
         ],
@@ -352,12 +443,19 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
-  // FIXED: No horizontal Flex paradoxes. Stacked vertically, cleanly bounded.
   Widget _buildActionButton(BuildContext context, IconData icon, String label) {
     final colorScheme = Theme.of(context).colorScheme;
     return Expanded(
       child: ElevatedButton(
-        onPressed: () {},
+        onPressed: () {
+          if (label == 'Log Meal') {
+            widget.onNavigate?.call(1);
+          } else if (label == 'Workout') {
+            widget.onNavigate?.call(2);
+          } else {
+            showComingSoonSheet(context, label);
+          }
+        },
         style: ElevatedButton.styleFrom(
           backgroundColor: colorScheme.surface,
           foregroundColor: colorScheme.onSurface,
@@ -424,7 +522,15 @@ class _HomeTabState extends State<HomeTab> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: () {},
+              onPressed: () {
+                if (title.contains('Workout')) {
+                  widget.onNavigate?.call(2);
+                } else if (title.contains('Meal')) {
+                  widget.onNavigate?.call(1);
+                } else {
+                  showComingSoonSheet(context, title);
+                }
+              },
               icon: const Icon(Icons.arrow_forward),
               label: const Text('View'),
               style: ElevatedButton.styleFrom(

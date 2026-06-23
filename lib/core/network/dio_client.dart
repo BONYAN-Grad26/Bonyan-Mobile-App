@@ -12,9 +12,9 @@ class DioClient {
         'API_BASE_URL',
         defaultValue: 'http://127.0.0.1:8080',
       ),
-      connectTimeout: const Duration(seconds: 20),
-      sendTimeout: const Duration(seconds: 20),
-      receiveTimeout: const Duration(seconds: 30),
+      connectTimeout: const Duration(seconds: 30),
+      sendTimeout: const Duration(seconds: 90),
+      receiveTimeout: const Duration(seconds: 90),
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',

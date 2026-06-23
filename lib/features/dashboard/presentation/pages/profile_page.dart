@@ -1,11 +1,68 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-class ProfilePage extends StatelessWidget {
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/providers/providers.dart';
+import '../../../../core/utils/ui_helpers.dart';
+
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadProfileData();
+    });
+  }
+
+  Future<void> _loadProfileData() async {
+    // Only fetch the health profile. The generic user profile fetch 
+    // was removed to avoid the 'id' field mismatch.
+    final profileProvider = context.read<ProfileProvider>();
+    await profileProvider.fetchMyHealthProfile();
+  }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final profileProvider = context.watch<ProfileProvider>();
+    final authProvider = context.watch<AuthProvider>();
+
+    if (profileProvider.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (profileProvider.errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+            const SizedBox(height: 16),
+            Text(profileProvider.errorMessage!, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadProfileData,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final authUser = authProvider.currentUser;
+    // Safely combine names if they exist
+    final fullName = authUser != null 
+        ? '${authUser.firstName ?? ''} ${authUser.lastName ?? ''}'.trim() 
+        : 'User';
+                      
+    final metrics = profileProvider.healthMetrics;
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -23,25 +80,25 @@ class ProfilePage extends StatelessWidget {
                       Text(
                         'My Profile',
                         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.onSurface,
-                        ),
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.onSurface,
+                            ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'View and manage your health information',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurface.withOpacity(0.70),
-                        ),
+                              color: colorScheme.onSurface.withOpacity(0.70),
+                            ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () => showComingSoonSheet(context, 'Edit Profile'),
                   style: ElevatedButton.styleFrom(
-                    minimumSize: Size.zero, // FIXED: Overrides global infinite width
+                    minimumSize: Size.zero,
                     backgroundColor: colorScheme.primary,
                     foregroundColor: colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
@@ -92,18 +149,18 @@ class ProfilePage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Alex Morgan',
+                              fullName.isEmpty ? 'User' : fullName,
                               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: colorScheme.onSurface,
-                              ),
+                                    fontWeight: FontWeight.bold,
+                                    color: colorScheme.onSurface,
+                                  ),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Member since January 2024',
+                              authUser?.email ?? 'N/A',
                               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurface.withOpacity(0.70),
-                              ),
+                                    color: colorScheme.onSurface.withOpacity(0.70),
+                                  ),
                             ),
                           ],
                         ),
@@ -115,17 +172,18 @@ class ProfilePage extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          Expanded(child: _buildProfileStat(context, 'Age', '28')),
+                          Expanded(child: _buildProfileStat(context, 'Age', metrics?.age?.toString() ?? 'N/A')),
                           const SizedBox(width: 12),
-                          Expanded(child: _buildProfileStat(context, 'Gender', 'Male')),
+                          // FIXED: Converted Enum to string using .name
+                          Expanded(child: _buildProfileStat(context, 'Gender', metrics?.gender?.name ?? 'N/A')),
                         ],
                       ),
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          Expanded(child: _buildProfileStat(context, 'Height', '180 cm')),
+                          Expanded(child: _buildProfileStat(context, 'Height', '${metrics?.heightCm ?? 0} cm')),
                           const SizedBox(width: 12),
-                          Expanded(child: _buildProfileStat(context, 'Weight', '82 kg')),
+                          Expanded(child: _buildProfileStat(context, 'Weight', '${metrics?.weightKg ?? 0} kg')),
                         ],
                       ),
                     ],
@@ -155,26 +213,26 @@ class ProfilePage extends StatelessWidget {
                   Text(
                     'BMI & Body Composition',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
-                    ),
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
+                        ),
                   ),
                   const SizedBox(height: 18),
                   Column(
                     children: [
                       Row(
                         children: [
-                          Expanded(child: _buildMetricTile(context, 'BMI', '25.3', 'Normal')),
+                          Expanded(child: _buildMetricTile(context, 'BMI', _calculateBMI(metrics), 'Normal')),
                           const SizedBox(width: 12),
-                          Expanded(child: _buildMetricTile(context, 'Lean Mass', '65.6 kg', '80%')),
+                          Expanded(child: _buildMetricTile(context, 'Lean Mass', '${metrics?.muscleMassKg ?? 'N/A'} kg', null)),
                         ],
                       ),
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          Expanded(child: _buildMetricTile(context, 'Fat Mass', '16.4 kg', '20%')),
+                          Expanded(child: _buildMetricTile(context, 'Fat %', '${metrics?.fatPercentage ?? 'N/A'}%', null)),
                           const SizedBox(width: 12),
-                          Expanded(child: _buildMetricTile(context, 'TDEE', '2,650', 'kcal/day')),
+                          Expanded(child: _buildMetricTile(context, 'TDEE', '${metrics?.dailyCalorieTarget ?? 'N/A'}', 'kcal/day')),
                         ],
                       ),
                     ],
@@ -183,26 +241,28 @@ class ProfilePage extends StatelessWidget {
                   Text(
                     'Goals',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
-                    ),
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
+                        ),
                   ),
                   const SizedBox(height: 14),
                   Column(
                     children: [
                       Row(
                         children: [
-                          Expanded(child: _buildMetricTile(context, 'Primary Goal', 'Muscle Gain', null)),
+                          // FIXED: Converted Enum to string using .name
+                          Expanded(child: _buildMetricTile(context, 'Primary Goal', metrics?.dietGoal?.name ?? 'N/A', null)),
                           const SizedBox(width: 12),
-                          Expanded(child: _buildMetricTile(context, 'Target Weight', '88 kg', null)),
+                          Expanded(child: _buildMetricTile(context, 'Target Weight', '${metrics?.targetWeightKg ?? 'N/A'} kg', null)),
                         ],
                       ),
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          Expanded(child: _buildMetricTile(context, 'Diet Type', 'High Protein', null)),
+                          // FIXED: Converted Enum to string using .name
+                          Expanded(child: _buildMetricTile(context, 'Diet Type', metrics?.dietType?.name ?? 'N/A', null)),
                           const SizedBox(width: 12),
-                          Expanded(child: _buildMetricTile(context, 'Daily Calorie Goal', '2,800 kcal', null)),
+                          Expanded(child: _buildMetricTile(context, 'Daily Calorie Goal', '${metrics?.dailyCalorieTarget ?? 'N/A'} kcal', null)),
                         ],
                       ),
                     ],
@@ -239,8 +299,8 @@ class ProfilePage extends StatelessWidget {
                     child: Text(
                       'Allergies: None recorded',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.primary,
-                      ),
+                            color: colorScheme.primary,
+                          ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -252,17 +312,19 @@ class ProfilePage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
-                      'Medical Notes: Previous shoulder injury from sports. Currently recovered but being monitored.',
+                      metrics?.medicalNotes != null && metrics!.medicalNotes!.isNotEmpty 
+                          ? 'Medical Notes: ${metrics.medicalNotes}' 
+                          : 'Medical Notes: None provided',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurface.withOpacity(0.75),
-                      ),
+                            color: colorScheme.onSurface.withOpacity(0.75),
+                          ),
                     ),
                   ),
                   const SizedBox(height: 16),
                   OutlinedButton(
-                    onPressed: () {},
+                    onPressed: () => showComingSoonSheet(context, 'Update Medical Information'),
                     style: OutlinedButton.styleFrom(
-                      minimumSize: Size.zero, // FIXED: Overrides global infinite width
+                      minimumSize: Size.zero,
                       foregroundColor: colorScheme.onSurface,
                       side: BorderSide(color: colorScheme.outline.withOpacity(0.3)),
                       shape: RoundedRectangleBorder(
@@ -282,6 +344,15 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
+  String _calculateBMI(dynamic metrics) {
+    if (metrics == null || metrics.weightKg == null || metrics.heightCm == null || metrics.heightCm == 0) {
+      return 'N/A';
+    }
+    final heightM = metrics.heightCm! / 100;
+    final bmi = metrics.weightKg! / (heightM * heightM);
+    return bmi.toStringAsFixed(1);
+  }
+
   Widget _buildProfileStat(BuildContext context, String label, String value) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
@@ -299,8 +370,8 @@ class ProfilePage extends StatelessWidget {
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurface.withOpacity(0.70),
-              ),
+                    color: colorScheme.onSurface.withOpacity(0.70),
+                  ),
             ),
           ),
           const SizedBox(height: 4),
@@ -309,9 +380,9 @@ class ProfilePage extends StatelessWidget {
             child: Text(
               value,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
             ),
           ),
         ],
@@ -337,8 +408,8 @@ class ProfilePage extends StatelessWidget {
             child: Text(
               label,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurface.withOpacity(0.70),
-              ),
+                    color: colorScheme.onSurface.withOpacity(0.70),
+                  ),
             ),
           ),
           const SizedBox(height: 4),
@@ -347,9 +418,9 @@ class ProfilePage extends StatelessWidget {
             child: Text(
               value,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
             ),
           ),
           if (subtitle != null) ...[
@@ -359,8 +430,8 @@ class ProfilePage extends StatelessWidget {
               child: Text(
                 subtitle,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurface.withOpacity(0.70),
-                ),
+                      color: colorScheme.onSurface.withOpacity(0.70),
+                    ),
               ),
             ),
           ],

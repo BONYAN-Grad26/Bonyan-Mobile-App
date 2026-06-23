@@ -1,41 +1,120 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-class MealsTab extends StatelessWidget {
+import '../../../../core/providers/providers.dart';
+import '../../../../core/models/models.dart';
+import '../../../../core/utils/ui_helpers.dart';
+
+class MealsTab extends StatefulWidget {
   const MealsTab({super.key});
+
+  @override
+  State<MealsTab> createState() => _MealsTabState();
+}
+
+class _MealsTabState extends State<MealsTab> {
+  bool _isGenerating = false;
+  DateTime _selectedDate = DateTime.now();
+
+  Future<void> _generatePlan() async {
+    setState(() => _isGenerating = true);
+    final todayStr = DateTime.now().toIso8601String().split('T')[0];
+    
+    // Generate only the diet plan since we're in the Meals Tab
+    final success = await context.read<DietPlanProvider>().generateWeeklyPlan(startDate: todayStr);
+    
+    if (mounted) {
+      setState(() => _isGenerating = false);
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Diet plan generated successfully!')),
+        );
+        await _loadData();
+      } else {
+        final dp = context.read<DietPlanProvider>();
+        final error = dp.generationError ?? dp.errorMessage ?? 'Failed to generate plan.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error)),
+        );
+        if (dp.generationError != null) {
+          _loadData();
+        }
+      }
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
+  }
+
+  Future<void> _loadData() async {
+    final dietProvider = context.read<DietPlanProvider>();
+    await dietProvider.fetchTodayPlan();
+    // Assuming fetchWeeklyPlans() could also be called if needed
+  }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final dietProvider = context.watch<DietPlanProvider>();
 
-    final meals = [
-      {
-        'name': 'Grilled Chicken Salad',
-        'mealType': 'Lunch',
-        'time': '12:30 PM',
-        'calories': 420,
-        'protein': 45,
-        'carbs': 25,
-        'fat': 12,
-      },
-      {
-        'name': 'Protein Smoothie Bowl',
-        'mealType': 'Breakfast',
-        'time': '8:00 AM',
-        'calories': 380,
-        'protein': 30,
-        'carbs': 50,
-        'fat': 8,
-      },
-      {
-        'name': 'Salmon with Sweet Potato',
-        'mealType': 'Dinner',
-        'time': '6:30 PM',
-        'calories': 520,
-        'protein': 48,
-        'carbs': 35,
-        'fat': 18,
-      },
-    ];
+    if (dietProvider.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (dietProvider.errorMessage != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+            const SizedBox(height: 16),
+            Text(dietProvider.errorMessage!, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadData,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final currentPlan = dietProvider.currentPlan;
+    final weeklyDays = currentPlan?.days ?? [];
+    
+    final selectedDateStr = _selectedDate.toIso8601String().split('T')[0];
+    DayPlan? selectedDayPlan;
+    for (final dp in weeklyDays) {
+      if (dp.date == selectedDateStr) {
+        selectedDayPlan = dp;
+        break;
+      }
+    }
+
+    final meals = selectedDayPlan?.meals ?? [];
+    
+    final targetCalories = selectedDayPlan?.targetCalories?.toInt() ?? 2200;
+    final targetProtein = selectedDayPlan?.targetProtein?.toInt() ?? 150;
+    final targetCarbs = selectedDayPlan?.targetCarbs?.toInt() ?? 275;
+    final targetFat = selectedDayPlan?.targetFat?.toInt() ?? 70;
+
+    // We don't have current consumed macros in the model yet, so we use placeholders or 0
+    final currentCalories = 0;
+    final currentProtein = 0;
+    final currentCarbs = 0;
+
+    // Helper for formatting date
+    String getWeekday(String? dateStr) {
+      if (dateStr == null) return 'Day';
+      final d = DateTime.tryParse(dateStr);
+      if (d == null) return 'Day';
+      return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][d.weekday - 1];
+    }
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -69,9 +148,9 @@ class MealsTab extends StatelessWidget {
                 ),
                 const SizedBox(width: 12),
                 ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () => showComingSoonSheet(context, 'Log Meal'),
                   style: ElevatedButton.styleFrom(
-                    minimumSize: Size.zero, // FIXED: Overrides global infinite width
+                    minimumSize: Size.zero,
                     backgroundColor: colorScheme.primary,
                     foregroundColor: colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
@@ -96,58 +175,67 @@ class MealsTab extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  for (var i = 0; i < 7; i++)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 10),
-                      child: Container(
-                        width: 92,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: i == 2
-                              ? colorScheme.primary.withOpacity(0.12)
-                              : colorScheme.surface,
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: i == 2 ? colorScheme.primary : colorScheme.outline.withOpacity(0.18),
+                  for (final dayPlan in weeklyDays)
+                    GestureDetector(
+                      onTap: () {
+                        if (dayPlan.date != null) {
+                          setState(() {
+                            _selectedDate = DateTime.parse(dayPlan.date!);
+                          });
+                        }
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: Container(
+                          width: 92,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: dayPlan.date == selectedDateStr
+                                ? colorScheme.primary.withOpacity(0.12)
+                                : colorScheme.surface,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: dayPlan.date == selectedDateStr ? colorScheme.primary : colorScheme.outline.withOpacity(0.18),
+                            ),
                           ),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i],
-                              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: colorScheme.onSurface,
+                          child: Column(
+                            children: [
+                              Text(
+                                getWeekday(dayPlan.date),
+                                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: colorScheme.onSurface,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              '2100 kcal',
-                              textAlign: TextAlign.center,
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: colorScheme.onSurface.withOpacity(0.65),
+                              const SizedBox(height: 6),
+                              Text(
+                                '${dayPlan.targetCalories?.toInt() ?? 0} kcal',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurface.withOpacity(0.65),
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            Container(
-                              width: double.infinity,
-                              height: 6,
-                              alignment: Alignment.centerLeft,
-                              decoration: BoxDecoration(
-                                color: colorScheme.outline.withOpacity(0.24),
-                                borderRadius: BorderRadius.circular(99),
-                              ),
-                              child: FractionallySizedBox(
-                                widthFactor: i == 2 ? 0.75 : 0.60,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: colorScheme.secondary,
-                                    borderRadius: BorderRadius.circular(99),
+                              const SizedBox(height: 8),
+                              Container(
+                                width: double.infinity,
+                                height: 6,
+                                alignment: Alignment.centerLeft,
+                                decoration: BoxDecoration(
+                                  color: colorScheme.outline.withOpacity(0.24),
+                                  borderRadius: BorderRadius.circular(99),
+                                ),
+                                child: FractionallySizedBox(
+                                  widthFactor: dayPlan.date == selectedDateStr ? 0.75 : 0.60,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: colorScheme.secondary,
+                                      borderRadius: BorderRadius.circular(99),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -163,77 +251,155 @@ class MealsTab extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            Column(
-              children: meals.map((meal) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: colorScheme.surface,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
+            if (meals.isEmpty)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.restaurant_menu, size: 64, color: colorScheme.primary.withOpacity(0.5)),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No Meals Planned',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onSurface,
+                      ),
                     ),
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.apple, color: colorScheme.primary, size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                meal['mealType'] as String,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: colorScheme.onSurface.withOpacity(0.65),
-                                  fontWeight: FontWeight.w600,
+                    const SizedBox(height: 12),
+                    Text(
+                      'Generate your AI-powered weekly diet plan to see your personalized meals for today.',
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurface.withOpacity(0.70),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: _isGenerating ? null : _generatePlan,
+                      icon: _isGenerating 
+                          ? SizedBox(
+                              width: 18, height: 18, 
+                              child: CircularProgressIndicator(strokeWidth: 2, color: colorScheme.onPrimary)
+                            )
+                          : const Icon(Icons.auto_awesome),
+                      label: const Text('Generate AI Plan', style: TextStyle(fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colorScheme.primary,
+                        foregroundColor: colorScheme.onPrimary,
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Column(
+                children: meals.map((meal) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: colorScheme.surface,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
+                      ),
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.apple, color: colorScheme.primary, size: 18),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  meal.mealType ?? 'Meal',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurface.withOpacity(0.65),
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          meal['name'] as String,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onSurface,
+                            ],
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Icon(Icons.schedule, size: 16, color: colorScheme.onSurface.withOpacity(0.65)),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                meal['time'] as String,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: colorScheme.onSurface.withOpacity(0.65),
+                          const SizedBox(height: 10),
+                          Text(
+                            meal.name ?? 'Unnamed Meal',
+                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.onSurface,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Icon(Icons.schedule, size: 16, color: colorScheme.onSurface.withOpacity(0.65)),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  'Prep time: ${meal.preparationTime ?? 0} mins',
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: colorScheme.onSurface.withOpacity(0.65),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 18),
+                          Row(
+                            children: [
+                              _buildMacroInfo(context, 'Calories', 'N/A', 'kcal'),
+                              const SizedBox(width: 4),
+                              _buildMacroInfo(context, 'Protein', 'N/A', 'g'),
+                              const SizedBox(width: 4),
+                              _buildMacroInfo(context, 'Carbs', 'N/A', 'g'),
+                              const SizedBox(width: 4),
+                              _buildMacroInfo(context, 'Fat', 'N/A', 'g'),
+                            ],
+                          ),
+                          if (meal.preparationInstructions != null && meal.preparationInstructions!.isNotEmpty) ...[
+                            const SizedBox(height: 16),
+                            Divider(color: colorScheme.outline.withOpacity(0.2)),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Icon(Icons.auto_awesome, size: 16, color: colorScheme.primary),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'AI Prep Tips',
+                                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              meal.preparationInstructions!,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: colorScheme.onSurface.withOpacity(0.75),
+                                height: 1.5,
                               ),
                             ),
                           ],
-                        ),
-                        const SizedBox(height: 18),
-                        Row(
-                          children: [
-                            _buildMacroInfo(context, 'Calories', '${meal['calories']}', 'kcal'),
-                            const SizedBox(width: 4),
-                            _buildMacroInfo(context, 'Protein', '${meal['protein']}', 'g'),
-                            const SizedBox(width: 4),
-                            _buildMacroInfo(context, 'Carbs', '${meal['carbs']}', 'g'),
-                            const SizedBox(width: 4),
-                            _buildMacroInfo(context, 'Fat', '${meal['fat']}', 'g'),
-                          ],
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              }).toList(),
-            ),
+                  );
+                }).toList(),
+              ),
             const SizedBox(height: 16),
             Container(
               width: double.infinity,
@@ -254,11 +420,11 @@ class MealsTab extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  _buildProgressRow(context, 'Calories', '1320 / 2200', 0.60, colorScheme.secondary),
+                  _buildProgressRow(context, 'Calories', '$currentCalories / $targetCalories', currentCalories / (targetCalories > 0 ? targetCalories : 1), colorScheme.secondary),
                   const SizedBox(height: 14),
-                  _buildProgressRow(context, 'Protein', '123 / 150g', 0.80, colorScheme.primary),
+                  _buildProgressRow(context, 'Protein', '$currentProtein / ${targetProtein}g', currentProtein / (targetProtein > 0 ? targetProtein : 1), colorScheme.primary),
                   const SizedBox(height: 14),
-                  _buildProgressRow(context, 'Carbs', '110 / 275g', 0.40, colorScheme.tertiary),
+                  _buildProgressRow(context, 'Carbs', '$currentCarbs / ${targetCarbs}g', currentCarbs / (targetCarbs > 0 ? targetCarbs : 1), colorScheme.tertiary),
                 ],
               ),
             ),
@@ -283,7 +449,7 @@ class MealsTab extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Your dinner is scheduled for 6:30 PM. The AI suggests the Salmon with Sweet Potato to hit your protein goals.',
+                    selectedDayPlan?.aiDailyTips ?? 'No daily tips available from AI right now.',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: colorScheme.onSurface.withOpacity(0.70),
                     ),
@@ -292,9 +458,9 @@ class MealsTab extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: () => showComingSoonSheet(context, 'Full Recommendations'),
                       style: ElevatedButton.styleFrom(
-                        minimumSize: Size.zero, // FIXED: Overrides global infinite width
+                        minimumSize: Size.zero,
                         backgroundColor: colorScheme.primary,
                         foregroundColor: colorScheme.onPrimary,
                         shape: RoundedRectangleBorder(
@@ -302,7 +468,7 @@ class MealsTab extends StatelessWidget {
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      child: const Text('View Recommendation', style: TextStyle(fontWeight: FontWeight.bold)),
+                      child: const Text('View Full Recommendations', style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],

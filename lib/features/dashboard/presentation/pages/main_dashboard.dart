@@ -21,12 +21,18 @@ class _MainDashboardState extends State<MainDashboard> {
   @override
   void initState() {
     super.initState();
-    _tabs = const [
-      HomeTab(),
-      MealsTab(),
-      WorkoutsTab(),
-      ProfilePage(),
-      SettingsPage(),
+    _tabs = [
+      HomeTab(
+        onNavigate: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+      ),
+      const MealsTab(),
+      const WorkoutsTab(),
+      const ProfilePage(),
+      const SettingsPage(),
     ];
   }
 

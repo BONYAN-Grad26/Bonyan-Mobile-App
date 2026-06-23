@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../../../features/auth/presentation/providers/auth_provider.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -87,6 +90,29 @@ class SettingsPage extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 30),
+            _buildSectionTitle(context, 'Account'),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  context.read<AuthProvider>().logout();
+                  Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colorScheme.error.withOpacity(0.1),
+                  foregroundColor: colorScheme.error,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  minimumSize: const Size(0, 52),
+                ),
+                icon: const Icon(Icons.logout),
+                label: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
             ),
             const SizedBox(height: 30),
           ],

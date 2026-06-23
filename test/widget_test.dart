@@ -8,12 +8,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:bonyaan_app/core/network/api_client.dart';
+import 'package:bonyaan_app/core/network/token_storage_impl.dart';
+import 'package:bonyaan_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:bonyaan_app/main.dart';
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    final tokenStorage = SharedPreferencesTokenStorage();
+    final authProvider = AuthProvider(tokenStorage: tokenStorage);
+    final apiClient = ApiClient(
+      baseUrl: 'http://127.0.0.1:8080',
+      tokenStorage: tokenStorage,
+    );
+    await tester.pumpWidget(MyApp(apiClient: apiClient, authProvider: authProvider));
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);
