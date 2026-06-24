@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/providers/providers.dart';
+import '../../../../core/providers/allergy_provider.dart';
 import '../../../../core/utils/ui_helpers.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -25,7 +26,11 @@ class _ProfilePageState extends State<ProfilePage> {
     // Only fetch the health profile. The generic user profile fetch 
     // was removed to avoid the 'id' field mismatch.
     final profileProvider = context.read<ProfileProvider>();
-    await profileProvider.fetchMyHealthProfile();
+    final allergyProvider = context.read<AllergyProvider>();
+    await Future.wait([
+      profileProvider.fetchMyHealthProfile(),
+      allergyProvider.fetchMyAllergies(),
+    ]);
   }
 
   @override
@@ -33,6 +38,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final colorScheme = Theme.of(context).colorScheme;
     final profileProvider = context.watch<ProfileProvider>();
     final authProvider = context.watch<AuthProvider>();
+    final allergyProvider = context.watch<AllergyProvider>();
 
     if (profileProvider.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -56,11 +62,17 @@ class _ProfilePageState extends State<ProfilePage> {
       );
     }
 
+    final progressProvider = context.watch<ProgressProvider>();
+    
     final authUser = authProvider.currentUser;
-    // Safely combine names if they exist
-    final fullName = authUser != null 
-        ? '${authUser.firstName ?? ''} ${authUser.lastName ?? ''}'.trim() 
-        : 'User';
+    // Safely combine names if they exist, checking local overrides first
+    final customFirst = progressProvider.customFirstName;
+    final customLast = progressProvider.customLastName;
+    
+    final firstName = customFirst.isNotEmpty ? customFirst : (authUser?.firstName ?? '');
+    final lastName = customLast.isNotEmpty ? customLast : (authUser?.lastName ?? '');
+    
+    final fullName = '$firstName $lastName'.trim().isEmpty ? 'User' : '$firstName $lastName'.trim();
                       
     final metrics = profileProvider.healthMetrics;
 
@@ -94,20 +106,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: () => showComingSoonSheet(context, 'Edit Profile'),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: Size.zero,
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: colorScheme.onPrimary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  ),
-                  child: const Text('Edit Profile', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
+
               ],
             ),
             const SizedBox(height: 24),
@@ -148,20 +147,59 @@ class _ProfilePageState extends State<ProfilePage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              fullName.isEmpty ? 'User' : fullName,
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: colorScheme.onSurface,
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    fullName,
+                                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          color: colorScheme.onSurface,
+                                        ),
                                   ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.edit, size: 20),
+                                  onPressed: () {
+                                    final firstCtrl = TextEditingController(text: firstName);
+                                    final lastCtrl = TextEditingController(text: lastName);
+                                    showDialog(
+                                      context: context,
+                                      builder: (context) => AlertDialog(
+                                        title: const Text('Edit Name'),
+                                        content: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            TextField(controller: firstCtrl, decoration: const InputDecoration(labelText: 'First Name')),
+                                            const SizedBox(height: 10),
+                                            TextField(controller: lastCtrl, decoration: const InputDecoration(labelText: 'Last Name')),
+                                          ],
+                                        ),
+                                        actions: [
+                                          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                                          ElevatedButton(
+                                            onPressed: () {
+                                              progressProvider.setCustomName(firstCtrl.text, lastCtrl.text);
+                                              Navigator.pop(context);
+                                            },
+                                            child: const Text('Save'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              authUser?.email ?? 'N/A',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: colorScheme.onSurface.withOpacity(0.70),
-                                  ),
-                            ),
+                            if (authUser?.email != null && authUser!.email!.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                authUser.email!,
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: colorScheme.onSurface.withOpacity(0.70),
+                                    ),
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -297,7 +335,9 @@ class _ProfilePageState extends State<ProfilePage> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
-                      'Allergies: None recorded',
+                      allergyProvider.allergies.isNotEmpty
+                          ? 'Allergies: ${allergyProvider.allergies.map((a) => a.name).join(', ')}'
+                          : 'Allergies: None recorded',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: colorScheme.primary,
                           ),
@@ -319,20 +359,6 @@ class _ProfilePageState extends State<ProfilePage> {
                             color: colorScheme.onSurface.withOpacity(0.75),
                           ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  OutlinedButton(
-                    onPressed: () => showComingSoonSheet(context, 'Update Medical Information'),
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: Size.zero,
-                      foregroundColor: colorScheme.onSurface,
-                      side: BorderSide(color: colorScheme.outline.withOpacity(0.3)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text('Update Medical Information', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),

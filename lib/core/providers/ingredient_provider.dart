@@ -1,58 +1,40 @@
 import 'package:flutter/foundation.dart';
-
 import 'package:bonyaan_app/core/models/models.dart';
 import 'package:bonyaan_app/core/network/exceptions.dart';
 import 'package:bonyaan_app/core/repositories/repositories.dart';
 
-/// Provider for user profile and health metrics state management
-/// Bridges UserRepository and HealthProfileRepository to the UI layer
-class ProfileProvider extends ChangeNotifier {
-  ProfileProvider({
-    required UserRepository userRepository,
-    required HealthProfileRepository healthProfileRepository,
-  })  : _userRepository = userRepository,
-        _healthProfileRepository = healthProfileRepository;
+class IngredientProvider extends ChangeNotifier {
+  IngredientProvider({required IngredientRepository ingredientRepository})
+      : _ingredientRepository = ingredientRepository;
 
-  final UserRepository _userRepository;
-  final HealthProfileRepository _healthProfileRepository;
-
-  // ---------------------------------------------------------------------------
-  // State
-  // ---------------------------------------------------------------------------
+  final IngredientRepository _ingredientRepository;
 
   bool _isLoading = false;
   String? _errorMessage;
 
-  UserProfile? _userProfile;
-  HealthMetrics? _healthMetrics;
-
-  // ---------------------------------------------------------------------------
-  // Getters
-  // ---------------------------------------------------------------------------
+  List<IngredientDto> _ingredients = [];
+  ReadIngredientDto? _currentIngredient;
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  UserProfile? get userProfile => _userProfile;
-  HealthMetrics? get healthMetrics => _healthMetrics;
+  List<IngredientDto> get ingredients => _ingredients;
+  ReadIngredientDto? get currentIngredient => _currentIngredient;
 
-  // ---------------------------------------------------------------------------
-  // Actions
-  // ---------------------------------------------------------------------------
-
-  /// Clears any previous error message
   void clearError() {
     _errorMessage = null;
     notifyListeners();
   }
 
-  /// Fetch user profile by user ID
-  Future<void> fetchUserProfile(int userId) async {
+  Future<void> fetchAllIngredients({int pageIdx = 1, List<String>? dietaryTagTypes}) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _userProfile = await _userRepository.getUserProfile(userId);
+      _ingredients = await _ingredientRepository.getAllIngredients(
+        pageIdx: pageIdx,
+        dietaryTagTypes: dietaryTagTypes,
+      );
       _isLoading = false;
       notifyListeners();
     } on ApiException catch (e) {
@@ -66,14 +48,13 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
-  /// Fetch current user's health profile and metrics
-  Future<void> fetchMyHealthProfile() async {
+  Future<void> fetchIngredientById(int id) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _healthMetrics = await _healthProfileRepository.getMyHealthProfile();
+      _currentIngredient = await _ingredientRepository.getIngredientById(id);
       _isLoading = false;
       notifyListeners();
     } on ApiException catch (e) {
@@ -87,14 +68,13 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
-  /// Fetch health profile by ID
-  Future<void> fetchHealthProfileById(int id) async {
+  Future<void> fetchIngredientByName(String name) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _healthMetrics = await _healthProfileRepository.getHealthProfileById(id);
+      _currentIngredient = await _ingredientRepository.getIngredientByName(name);
       _isLoading = false;
       notifyListeners();
     } on ApiException catch (e) {
@@ -108,14 +88,13 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
-  /// Create a new health profile for authenticated user
-  Future<bool> createHealthProfile(HealthMetrics metrics) async {
+  Future<bool> addIngredient(CreateIngredientDto dto, String filePath) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _healthMetrics = await _healthProfileRepository.createHealthProfile(metrics);
+      _currentIngredient = await _ingredientRepository.addIngredient(dto, filePath);
       _isLoading = false;
       notifyListeners();
       return true;
@@ -132,14 +111,13 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
-  /// Update existing health profile
-  Future<bool> updateHealthProfile(int id, HealthMetrics metrics) async {
+  Future<bool> updateIngredient(int id, UpdateIngredientDto dto) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _healthMetrics = await _healthProfileRepository.updateHealthProfile(id, metrics);
+      _currentIngredient = await _ingredientRepository.updateIngredient(id, dto);
       _isLoading = false;
       notifyListeners();
       return true;
@@ -156,15 +134,60 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
-  /// Delete health profile
-  Future<bool> deleteHealthProfile(int id) async {
+  Future<bool> deleteIngredient(int id) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      await _healthProfileRepository.deleteHealthProfile(id);
-      _healthMetrics = null;
+      await _ingredientRepository.deleteIngredient(id);
+      _ingredients.removeWhere((element) => element.id == id);
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on ApiException catch (e) {
+      _errorMessage = e.message;
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> addIngredientTags(int ingredientId, List<int> tagIds) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _ingredientRepository.addIngredientTags(ingredientId, tagIds);
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on ApiException catch (e) {
+      _errorMessage = e.message;
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> removeIngredientTags(int ingredientId, List<int> tagIds) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _ingredientRepository.removeIngredientTags(ingredientId, tagIds);
       _isLoading = false;
       notifyListeners();
       return true;

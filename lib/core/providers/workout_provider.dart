@@ -167,6 +167,32 @@ class WorkoutProvider extends ChangeNotifier {
     }
   }
 
+  /// Fetch today's workout plan
+  Future<void> fetchTodayWorkout() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      _todayWorkout = await _workoutRepository.getTodayWorkout();
+      _isLoading = false;
+      notifyListeners();
+    } on NotFoundException {
+      _todayWorkout = null;
+      _errorMessage = null;
+      _isLoading = false;
+      notifyListeners();
+    } on ApiException catch (e) {
+      _errorMessage = e.message;
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   /// Delete a workout plan
   Future<bool> deleteWorkout(int id) async {
     _isLoading = true;

@@ -3,6 +3,7 @@
 import 'package:bonyaan_app/core/models/models.dart';
 import 'package:bonyaan_app/core/network/api_client.dart';
 import 'package:bonyaan_app/core/network/exceptions.dart';
+import 'dart:convert';
 
 /// Repository for diet plan operations
 class DietPlanRepository {
@@ -100,7 +101,6 @@ class DietPlanRepository {
           statusCode: '500',
         );
       }
-
       return DayPlan.fromJson(response as Map<String, dynamic>);
     } on ApiException {
       rethrow;

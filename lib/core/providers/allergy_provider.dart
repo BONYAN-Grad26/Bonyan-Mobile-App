@@ -1,58 +1,37 @@
 import 'package:flutter/foundation.dart';
-
 import 'package:bonyaan_app/core/models/models.dart';
 import 'package:bonyaan_app/core/network/exceptions.dart';
 import 'package:bonyaan_app/core/repositories/repositories.dart';
 
-/// Provider for user profile and health metrics state management
-/// Bridges UserRepository and HealthProfileRepository to the UI layer
-class ProfileProvider extends ChangeNotifier {
-  ProfileProvider({
-    required UserRepository userRepository,
-    required HealthProfileRepository healthProfileRepository,
-  })  : _userRepository = userRepository,
-        _healthProfileRepository = healthProfileRepository;
+class AllergyProvider extends ChangeNotifier {
+  AllergyProvider({required AllergyRepository allergyRepository})
+      : _allergyRepository = allergyRepository;
 
-  final UserRepository _userRepository;
-  final HealthProfileRepository _healthProfileRepository;
-
-  // ---------------------------------------------------------------------------
-  // State
-  // ---------------------------------------------------------------------------
+  final AllergyRepository _allergyRepository;
 
   bool _isLoading = false;
   String? _errorMessage;
 
-  UserProfile? _userProfile;
-  HealthMetrics? _healthMetrics;
-
-  // ---------------------------------------------------------------------------
-  // Getters
-  // ---------------------------------------------------------------------------
+  List<ReadAllergyDto> _allergies = [];
+  ReadAllergyDto? _currentAllergy;
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  UserProfile? get userProfile => _userProfile;
-  HealthMetrics? get healthMetrics => _healthMetrics;
+  List<ReadAllergyDto> get allergies => _allergies;
+  ReadAllergyDto? get currentAllergy => _currentAllergy;
 
-  // ---------------------------------------------------------------------------
-  // Actions
-  // ---------------------------------------------------------------------------
-
-  /// Clears any previous error message
   void clearError() {
     _errorMessage = null;
     notifyListeners();
   }
 
-  /// Fetch user profile by user ID
-  Future<void> fetchUserProfile(int userId) async {
+  Future<void> fetchMyAllergies() async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _userProfile = await _userRepository.getUserProfile(userId);
+      _allergies = await _allergyRepository.getMyAllergies();
       _isLoading = false;
       notifyListeners();
     } on ApiException catch (e) {
@@ -66,14 +45,13 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
-  /// Fetch current user's health profile and metrics
-  Future<void> fetchMyHealthProfile() async {
+  Future<void> fetchAllergiesByUserId(int userId) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _healthMetrics = await _healthProfileRepository.getMyHealthProfile();
+      _allergies = await _allergyRepository.getAllergiesByUserId(userId);
       _isLoading = false;
       notifyListeners();
     } on ApiException catch (e) {
@@ -87,14 +65,13 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
-  /// Fetch health profile by ID
-  Future<void> fetchHealthProfileById(int id) async {
+  Future<void> fetchAllergyById(int id) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _healthMetrics = await _healthProfileRepository.getHealthProfileById(id);
+      _currentAllergy = await _allergyRepository.getAllergyById(id);
       _isLoading = false;
       notifyListeners();
     } on ApiException catch (e) {
@@ -108,14 +85,14 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
-  /// Create a new health profile for authenticated user
-  Future<bool> createHealthProfile(HealthMetrics metrics) async {
+  Future<bool> addAllergy(CreateAllergyDto dto) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _healthMetrics = await _healthProfileRepository.createHealthProfile(metrics);
+      _currentAllergy = await _allergyRepository.addAllergy(dto);
+      _allergies.add(_currentAllergy!);
       _isLoading = false;
       notifyListeners();
       return true;
@@ -132,14 +109,17 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
-  /// Update existing health profile
-  Future<bool> updateHealthProfile(int id, HealthMetrics metrics) async {
+  Future<bool> updateAllergy(int id, UpdateAllergyDto dto) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _healthMetrics = await _healthProfileRepository.updateHealthProfile(id, metrics);
+      _currentAllergy = await _allergyRepository.updateAllergy(id, dto);
+      final index = _allergies.indexWhere((element) => element.id == id);
+      if (index != -1 && _currentAllergy != null) {
+        _allergies[index] = _currentAllergy!;
+      }
       _isLoading = false;
       notifyListeners();
       return true;
@@ -156,15 +136,14 @@ class ProfileProvider extends ChangeNotifier {
     }
   }
 
-  /// Delete health profile
-  Future<bool> deleteHealthProfile(int id) async {
+  Future<bool> deleteAllergy(int id) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      await _healthProfileRepository.deleteHealthProfile(id);
-      _healthMetrics = null;
+      await _allergyRepository.deleteAllergy(id);
+      _allergies.removeWhere((element) => element.id == id);
       _isLoading = false;
       notifyListeners();
       return true;

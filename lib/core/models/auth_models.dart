@@ -136,7 +136,11 @@ class UserProfile {
     required this.email,
   });
 
-  factory UserProfile.fromJson(Map<String, dynamic> json) {
+  factory UserProfile.fromJson(Map<String, dynamic> jsonMap) {
+    final json = jsonMap.containsKey('data') && jsonMap['data'] is Map<String, dynamic>
+        ? jsonMap['data'] as Map<String, dynamic>
+        : jsonMap;
+
     return UserProfile(
       firstName: json['firstName'] as String? ?? '',
       lastName: json['lastName'] as String? ?? '',

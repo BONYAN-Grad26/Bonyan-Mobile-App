@@ -107,6 +107,10 @@ class _HomeTabState extends State<HomeTab> {
     ];
     
     await Future.wait(futures);
+
+    if (dietProvider.currentPlan == null || (dietProvider.currentPlan?.days?.isEmpty ?? true)) {
+      await dietProvider.fetchWeeklyPlans();
+    }
   }
 
   @override
@@ -115,7 +119,7 @@ class _HomeTabState extends State<HomeTab> {
     final profileProvider = context.watch<ProfileProvider>();
     final dietProvider = context.watch<DietPlanProvider>();
     final workoutProvider = context.watch<WorkoutProvider>();
-
+    final progressProvider = context.watch<ProgressProvider>();
     final colorScheme = Theme.of(context).colorScheme;
 
     // Loading State
@@ -148,21 +152,30 @@ class _HomeTabState extends State<HomeTab> {
     }
 
     final userName = authProvider.currentUser?.firstName;
-    final greetingName = (userName == null || userName.isEmpty) ? 'Alex' : userName;
+    final greetingName = progressProvider.customFirstName.isNotEmpty 
+        ? progressProvider.customFirstName 
+        : ((userName == null || userName.isEmpty) ? 'User' : userName);
 
     final metrics = profileProvider.healthMetrics;
     
-    // Goals from health profile
-    final int caloriesGoal = metrics?.dailyCalorieTarget ?? 2200;
-    final int proteinGoal = metrics?.weightKg != null ? (metrics!.weightKg! * 2).round() : 150;
-    const int waterGoal = 8;
-    const int stepsGoal = 10000;
+    // Goals from health profile and diet plan
+    final int caloriesGoal = dietProvider.todayPlan?.targetCalories?.toInt() ?? metrics?.dailyCalorieTarget ?? 2200;
+    final int proteinGoal = dietProvider.todayPlan?.targetProtein?.toInt() ?? (metrics?.weightKg != null ? (metrics!.weightKg! * 2).round() : 150);
+    
+    // Current progress
+    int caloriesCurrent = 0;
+    int proteinCurrent = 0;
 
-    // Current progress (0 for empty states)
-    const int caloriesCurrent = 0;
-    const int proteinCurrent = 0;
-    const int waterCurrent = 0;
-    const int stepsCurrent = 0;
+    if (dietProvider.todayPlan?.meals != null && dietProvider.todayPlan!.meals!.isNotEmpty) {
+      int mealCount = dietProvider.todayPlan!.meals!.length;
+      for (final meal in dietProvider.todayPlan!.meals!) {
+        final mealId = meal.id ?? ((dietProvider.todayPlan!.dayOfWeek ?? 0).hashCode ^ meal.name.hashCode);
+        if (progressProvider.isMealCompleted(mealId)) {
+          caloriesCurrent += (caloriesGoal / mealCount).round();
+          proteinCurrent += (proteinGoal / mealCount).round();
+        }
+      }
+    }
 
     return RefreshIndicator(
       onRefresh: _loadData,
@@ -215,99 +228,11 @@ class _HomeTabState extends State<HomeTab> {
                     progress: proteinCurrent / proteinGoal * 100,
                     trend: const MetricTrend(value: 3, direction: TrendDirection.up),
                   ),
-                  MetricCard(
-                    title: 'Water',
-                    value: '$waterCurrent',
-                    unit: 'cups',
-                    icon: Icons.water_drop,
-                    variant: MetricVariant.workout,
-                    progress: waterCurrent / waterGoal * 100,
-                    trend: const MetricTrend(value: 1, direction: TrendDirection.up),
-                  ),
-                  MetricCard(
-                    title: 'Steps',
-                    value: stepsCurrent.toString(),
-                    unit: 'steps',
-                    icon: Icons.trending_up,
-                    variant: MetricVariant.defaultVariant,
-                    progress: stepsCurrent / stepsGoal * 100,
-                    trend: const MetricTrend(value: 12, direction: TrendDirection.up),
-                  ),
                 ],
               ),
             ),
           ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-            sliver: SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: colorScheme.primary.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: colorScheme.primary.withOpacity(0.12)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Your Weekly Plan is Ready to Generate',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: colorScheme.onSurface,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Tap below to let our AI build your personalized 7-day diet and workout schedule based on your health metrics.',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onSurface.withOpacity(0.70),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _isGenerating ? null : _generatePlans,
-                            style: ElevatedButton.styleFrom(
-                              minimumSize: Size.zero,
-                              backgroundColor: colorScheme.primary,
-                              foregroundColor: colorScheme.onPrimary,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            child: _isGenerating
-                                ? Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      SizedBox(
-                                        height: 18,
-                                        width: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: colorScheme.onPrimary,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Text(_generationStep, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                    ],
-                                  )
-                                : const Text('Generate AI Plans', style: TextStyle(fontWeight: FontWeight.bold)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
             sliver: SliverToBoxAdapter(
@@ -321,12 +246,47 @@ class _HomeTabState extends State<HomeTab> {
                       color: colorScheme.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  _buildProgressPanel(context, 'Workouts Completed', '2/3', 0.67, colorScheme.primary),
-                  const SizedBox(height: 12),
-                  _buildProgressPanel(context, 'Meals Logged', '18/21', 0.86, colorScheme.secondary),
-                  const SizedBox(height: 12),
-                  _buildProgressPanel(context, 'Goal Adherence', '94%', 0.94, colorScheme.tertiary),
+                  (() {
+                    int totalMeals = 0;
+                    int completedMeals = 0;
+                    if (dietProvider.currentPlan?.days != null && dietProvider.currentPlan!.days!.isNotEmpty) {
+                      for (final day in dietProvider.currentPlan!.days!) {
+                        if (day.meals != null) {
+                          totalMeals += day.meals!.length;
+                          for (final meal in day.meals!) {
+                            final d = day.dayOfWeek ?? 0;
+                            final mId = meal.id ?? meal.name.hashCode;
+                            final uniqueId = d * 100000 + (mId.abs() % 100000);
+                            if (progressProvider.isMealCompleted(uniqueId)) {
+                              completedMeals++;
+                            }
+                          }
+                        }
+                      }
+                    }
+                    if (totalMeals == 0) totalMeals = 21;
+                    
+                    int totalWorkouts = 0;
+                    if (workoutProvider.currentPlan?.weeklySchedule != null) {
+                      for (final day in workoutProvider.currentPlan!.weeklySchedule!.values) {
+                        if (day.exercises != null && day.exercises!.isNotEmpty) {
+                          totalWorkouts++;
+                        }
+                      }
+                    }
+                    if (totalWorkouts == 0) totalWorkouts = 4;
+
+                    int completedWorkouts = progressProvider.completedWorkoutsCount;
+
+                    return Column(
+                      children: [
+                        _buildProgressPanel(context, 'Workouts Completed', '$completedWorkouts / $totalWorkouts', completedWorkouts / totalWorkouts, colorScheme.primary),
+                        const SizedBox(height: 12),
+                        _buildProgressPanel(context, 'Meals Logged', '$completedMeals / $totalMeals', completedMeals / totalMeals, colorScheme.secondary),
+                      ],
+                    );
+                  })(),
+
                 ],
               ),
             ),
@@ -337,23 +297,7 @@ class _HomeTabState extends State<HomeTab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Quick Actions',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      _buildActionButton(context, Icons.restaurant, 'Log Meal'),
-                      const SizedBox(width: 12),
-                      _buildActionButton(context, Icons.fitness_center, 'Workout'),
-                      const SizedBox(width: 12),
-                      _buildActionButton(context, Icons.track_changes, 'Goals'),
-                    ],
-                  ),
+
                   const SizedBox(height: 24),
                   Text(
                     'Next Up',
@@ -365,19 +309,21 @@ class _HomeTabState extends State<HomeTab> {
                   const SizedBox(height: 14),
                   _buildUpcomingCard(
                     context, 
-                    workoutProvider.todayWorkout?.exercises?.firstOrNull?.name ?? 'Upper Body Workout', 
-                    'Today at 6:00 PM', 
+                    workoutProvider.todayWorkout?.exercises?.firstOrNull?.name ?? 'Rest Day', 
+                    workoutProvider.todayWorkout != null ? 'Today' : 'No workout today', 
                     colorScheme.primary,
+                    navigateIndex: 2,
                   ),
                   const SizedBox(height: 12),
                   _buildUpcomingCard(
                     context, 
-                    dietProvider.todayPlan?.meals?.firstOrNull?.name ?? 'Dinner Meal Plan', 
-                    'In 2 hours', 
+                    dietProvider.todayPlan?.meals?.firstOrNull?.name ?? 'No Meals Planned', 
+                    dietProvider.todayPlan != null ? 'Upcoming' : '', 
                     colorScheme.secondary,
+                    navigateIndex: 1,
                   ),
                   const SizedBox(height: 24),
-                  _buildHealthScoreCard(context, 'Overall Health Score', 85, colorScheme),
+                  _buildHealthScoreCard(context, 'Overall Health Score', (profileProvider.healthMetrics?.bmi != null ? (100 - (profileProvider.healthMetrics!.bmi! - 22).abs() * 2).toInt() : 85), colorScheme),
                   const SizedBox(height: 30),
                 ],
               ),
@@ -485,7 +431,7 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
-  Widget _buildUpcomingCard(BuildContext context, String title, String subtitle, Color accent) {
+  Widget _buildUpcomingCard(BuildContext context, String title, String subtitle, Color accent, {int? navigateIndex}) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
@@ -523,10 +469,8 @@ class _HomeTabState extends State<HomeTab> {
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: () {
-                if (title.contains('Workout')) {
-                  widget.onNavigate?.call(2);
-                } else if (title.contains('Meal')) {
-                  widget.onNavigate?.call(1);
+                if (navigateIndex != null) {
+                  widget.onNavigate?.call(navigateIndex);
                 } else {
                   showComingSoonSheet(context, title);
                 }

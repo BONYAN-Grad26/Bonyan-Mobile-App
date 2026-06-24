@@ -12,6 +12,7 @@ import 'package:bonyaan_app/core/network/api_client.dart';
 import 'package:bonyaan_app/core/network/token_storage_impl.dart';
 import 'package:bonyaan_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:bonyaan_app/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
@@ -21,7 +22,11 @@ void main() {
       baseUrl: 'http://127.0.0.1:8080',
       tokenStorage: tokenStorage,
     );
-    await tester.pumpWidget(MyApp(apiClient: apiClient, authProvider: authProvider));
+    
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+
+    await tester.pumpWidget(MyApp(apiClient: apiClient, authProvider: authProvider, prefs: prefs));
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);

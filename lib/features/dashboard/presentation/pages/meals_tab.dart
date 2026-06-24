@@ -14,7 +14,7 @@ class MealsTab extends StatefulWidget {
 
 class _MealsTabState extends State<MealsTab> {
   bool _isGenerating = false;
-  DateTime _selectedDate = DateTime.now();
+  int _selectedIndex = -1; // -1 means auto-select today on first load
 
   Future<void> _generatePlan() async {
     setState(() => _isGenerating = true);
@@ -53,14 +53,16 @@ class _MealsTabState extends State<MealsTab> {
 
   Future<void> _loadData() async {
     final dietProvider = context.read<DietPlanProvider>();
-    await dietProvider.fetchTodayPlan();
-    // Assuming fetchWeeklyPlans() could also be called if needed
+    await dietProvider.fetchWeeklyPlans();
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final dietProvider = context.watch<DietPlanProvider>();
+    final progressProvider = context.watch<ProgressProvider>();
+
+    print('UI_DEBUG: Current dayPlan meals count is ${dietProvider.todayPlan?.meals?.length ?? -1}');
 
     if (dietProvider.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -85,15 +87,26 @@ class _MealsTabState extends State<MealsTab> {
     }
 
     final currentPlan = dietProvider.currentPlan;
-    final weeklyDays = currentPlan?.days ?? [];
+    List<DayPlan> weeklyDays = currentPlan?.days ?? [];
+
+    if (weeklyDays.isEmpty && dietProvider.todayPlan != null) {
+      weeklyDays = [dietProvider.todayPlan!];
+    }
     
-    final selectedDateStr = _selectedDate.toIso8601String().split('T')[0];
+    final todayWeekday = DateTime.now().weekday;
+
+    if (_selectedIndex == -1 && weeklyDays.isNotEmpty) {
+      // Find today's index by dayOfWeek
+      int todayIdx = weeklyDays.indexWhere((dp) => dp.dayOfWeek == todayWeekday);
+      _selectedIndex = todayIdx != -1 ? todayIdx : 0;
+    }
+
     DayPlan? selectedDayPlan;
-    for (final dp in weeklyDays) {
-      if (dp.date == selectedDateStr) {
-        selectedDayPlan = dp;
-        break;
-      }
+    if (weeklyDays.isNotEmpty) {
+      if (_selectedIndex >= weeklyDays.length) _selectedIndex = 0;
+      if (_selectedIndex >= 0) selectedDayPlan = weeklyDays[_selectedIndex];
+    } else {
+      selectedDayPlan = dietProvider.todayPlan;
     }
 
     final meals = selectedDayPlan?.meals ?? [];
@@ -103,17 +116,58 @@ class _MealsTabState extends State<MealsTab> {
     final targetCarbs = selectedDayPlan?.targetCarbs?.toInt() ?? 275;
     final targetFat = selectedDayPlan?.targetFat?.toInt() ?? 70;
 
-    // We don't have current consumed macros in the model yet, so we use placeholders or 0
-    final currentCalories = 0;
-    final currentProtein = 0;
-    final currentCarbs = 0;
+    // Calculate current consumed macros based on checked meals (estimating per meal)
+    double currentCalories = 0;
+    double currentProtein = 0;
+    double currentCarbs = 0;
 
-    // Helper for formatting date
-    String getWeekday(String? dateStr) {
-      if (dateStr == null) return 'Day';
-      final d = DateTime.tryParse(dateStr);
-      if (d == null) return 'Day';
-      return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][d.weekday - 1];
+    final mealsCount = meals.isNotEmpty ? meals.length : 1;
+    final caloriesPerMeal = (targetCalories / mealsCount).toDouble();
+    final proteinPerMeal = (targetProtein / mealsCount).toDouble();
+    final carbsPerMeal = (targetCarbs / mealsCount).toDouble();
+
+    for (final meal in meals) {
+      if (progressProvider.isMealCompleted(meal.id ?? meal.name.hashCode)) {
+        currentCalories += caloriesPerMeal;
+        currentProtein += proteinPerMeal;
+        currentCarbs += carbsPerMeal;
+      }
+    }
+
+    // Helper for formatting date using dayOfWeek instead of parsed date string
+    String getWeekday(DayPlan dp) {
+      if (dp.dayOfWeek != null && dp.dayOfWeek! >= 1 && dp.dayOfWeek! <= 7) {
+        return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][dp.dayOfWeek! - 1];
+      }
+      return 'Day';
+    }
+
+    IconData getMealIcon(String? type) {
+      if (type == null) return Icons.restaurant;
+      final lower = type.toLowerCase();
+      if (lower.contains('breakfast')) return Icons.bakery_dining;
+      if (lower.contains('lunch')) return Icons.lunch_dining;
+      if (lower.contains('dinner')) return Icons.dinner_dining;
+      if (lower.contains('snack')) return Icons.cookie;
+      return Icons.restaurant;
+    }
+
+    int getUniqueMealId(DayPlan? dp, Meal meal) {
+      final day = dp?.dayOfWeek ?? 0;
+      final mId = meal.id ?? meal.name.hashCode;
+      return day * 100000 + (mId.abs() % 100000);
+    }
+
+    double getDayProgress(DayPlan dp) {
+      if (dp.meals == null || dp.meals!.isEmpty) return 0.0;
+      int completed = 0;
+      for (var meal in dp.meals!) {
+        final mealId = getUniqueMealId(dp, meal);
+        if (progressProvider.isMealCompleted(mealId)) {
+          completed++;
+        }
+      }
+      return completed / dp.meals!.length;
     }
 
     return SafeArea(
@@ -146,20 +200,7 @@ class _MealsTabState extends State<MealsTab> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: () => showComingSoonSheet(context, 'Log Meal'),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: Size.zero,
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: colorScheme.onPrimary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  ),
-                  child: const Text('Log Meal', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
+
               ],
             ),
             const SizedBox(height: 24),
@@ -175,14 +216,12 @@ class _MealsTabState extends State<MealsTab> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  for (final dayPlan in weeklyDays)
+                  for (int i = 0; i < weeklyDays.length; i++)
                     GestureDetector(
                       onTap: () {
-                        if (dayPlan.date != null) {
-                          setState(() {
-                            _selectedDate = DateTime.parse(dayPlan.date!);
-                          });
-                        }
+                        setState(() {
+                          _selectedIndex = i;
+                        });
                       },
                       child: Padding(
                         padding: const EdgeInsets.only(right: 10),
@@ -190,18 +229,18 @@ class _MealsTabState extends State<MealsTab> {
                           width: 92,
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: dayPlan.date == selectedDateStr
+                            color: i == _selectedIndex
                                 ? colorScheme.primary.withOpacity(0.12)
                                 : colorScheme.surface,
                             borderRadius: BorderRadius.circular(18),
                             border: Border.all(
-                              color: dayPlan.date == selectedDateStr ? colorScheme.primary : colorScheme.outline.withOpacity(0.18),
+                              color: i == _selectedIndex ? colorScheme.primary : colorScheme.outline.withOpacity(0.18),
                             ),
                           ),
                           child: Column(
                             children: [
                               Text(
-                                getWeekday(dayPlan.date),
+                                getWeekday(weeklyDays[i]),
                                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
                                   fontWeight: FontWeight.w700,
                                   color: colorScheme.onSurface,
@@ -209,7 +248,7 @@ class _MealsTabState extends State<MealsTab> {
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                '${dayPlan.targetCalories?.toInt() ?? 0} kcal',
+                                '${weeklyDays[i].targetCalories?.toInt() ?? 0} kcal',
                                 textAlign: TextAlign.center,
                                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                   color: colorScheme.onSurface.withOpacity(0.65),
@@ -225,7 +264,7 @@ class _MealsTabState extends State<MealsTab> {
                                   borderRadius: BorderRadius.circular(99),
                                 ),
                                 child: FractionallySizedBox(
-                                  widthFactor: dayPlan.date == selectedDateStr ? 0.75 : 0.60,
+                                  widthFactor: getDayProgress(weeklyDays[i]).clamp(0.0, 1.0),
                                   child: Container(
                                     decoration: BoxDecoration(
                                       color: colorScheme.secondary,
@@ -319,7 +358,7 @@ class _MealsTabState extends State<MealsTab> {
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.apple, color: colorScheme.primary, size: 18),
+                              Icon(getMealIcon(meal.mealType), color: colorScheme.primary, size: 18),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -329,6 +368,10 @@ class _MealsTabState extends State<MealsTab> {
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
+                              ),
+                              Checkbox(
+                                value: progressProvider.isMealCompleted(getUniqueMealId(selectedDayPlan, meal)),
+                                onChanged: (val) => progressProvider.toggleMeal(getUniqueMealId(selectedDayPlan, meal), val ?? false),
                               ),
                             ],
                           ),
@@ -356,18 +399,7 @@ class _MealsTabState extends State<MealsTab> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 18),
-                          Row(
-                            children: [
-                              _buildMacroInfo(context, 'Calories', 'N/A', 'kcal'),
-                              const SizedBox(width: 4),
-                              _buildMacroInfo(context, 'Protein', 'N/A', 'g'),
-                              const SizedBox(width: 4),
-                              _buildMacroInfo(context, 'Carbs', 'N/A', 'g'),
-                              const SizedBox(width: 4),
-                              _buildMacroInfo(context, 'Fat', 'N/A', 'g'),
-                            ],
-                          ),
+                          const SizedBox(height: 8),
                           if (meal.preparationInstructions != null && meal.preparationInstructions!.isNotEmpty) ...[
                             const SizedBox(height: 16),
                             Divider(color: colorScheme.outline.withOpacity(0.2)),
@@ -420,60 +452,15 @@ class _MealsTabState extends State<MealsTab> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  _buildProgressRow(context, 'Calories', '$currentCalories / $targetCalories', currentCalories / (targetCalories > 0 ? targetCalories : 1), colorScheme.secondary),
+                  _buildProgressRow(context, 'Calories', '${currentCalories.toInt()} / ${targetCalories.toInt()}', currentCalories / (targetCalories > 0 ? targetCalories : 1), colorScheme.secondary),
                   const SizedBox(height: 14),
-                  _buildProgressRow(context, 'Protein', '$currentProtein / ${targetProtein}g', currentProtein / (targetProtein > 0 ? targetProtein : 1), colorScheme.primary),
+                  _buildProgressRow(context, 'Protein', '${currentProtein.toInt()} / ${targetProtein.toInt()}g', currentProtein / (targetProtein > 0 ? targetProtein : 1), colorScheme.primary),
                   const SizedBox(height: 14),
-                  _buildProgressRow(context, 'Carbs', '$currentCarbs / ${targetCarbs}g', currentCarbs / (targetCarbs > 0 ? targetCarbs : 1), colorScheme.tertiary),
+                  _buildProgressRow(context, 'Carbs', '${currentCarbs.toInt()} / ${targetCarbs.toInt()}g', currentCarbs / (targetCarbs > 0 ? targetCarbs : 1), colorScheme.tertiary),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: colorScheme.primary.withOpacity(0.08),
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: colorScheme.primary.withOpacity(0.12)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'AI Recommendation',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    selectedDayPlan?.aiDailyTips ?? 'No daily tips available from AI right now.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface.withOpacity(0.70),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () => showComingSoonSheet(context, 'Full Recommendations'),
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: Size.zero,
-                        backgroundColor: colorScheme.primary,
-                        foregroundColor: colorScheme.onPrimary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: const Text('View Full Recommendations', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+
             const SizedBox(height: 30),
           ],
         ),

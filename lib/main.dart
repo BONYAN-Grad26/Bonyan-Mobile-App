@@ -14,9 +14,14 @@ import 'features/onboarding/data/repositories/metrics_repository.dart';
 import 'features/onboarding/presentation/pages/onboarding_wizard.dart';
 import 'features/onboarding/presentation/providers/onboarding_provider.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 final GlobalKey<NavigatorState> globalNavigatorKey = GlobalKey<NavigatorState>();
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await SharedPreferences.getInstance();
+  
   final tokenStorage = SharedPreferencesTokenStorage();
   final authProvider = AuthProvider(tokenStorage: tokenStorage);
   
@@ -31,14 +36,15 @@ void main() {
     },
   );
 
-  runApp(MyApp(apiClient: apiClient, authProvider: authProvider));
+  runApp(MyApp(apiClient: apiClient, authProvider: authProvider, prefs: prefs));
 }
 
 class MyApp extends StatelessWidget {
   final ApiClient apiClient;
   final AuthProvider authProvider;
+  final SharedPreferences prefs;
 
-  const MyApp({super.key, required this.apiClient, required this.authProvider});
+  const MyApp({super.key, required this.apiClient, required this.authProvider, required this.prefs});
 
   @override
   Widget build(BuildContext context) {
@@ -62,8 +68,21 @@ class MyApp extends StatelessWidget {
             healthProfileRepository: HealthProfileRepository(apiClient: apiClient),
           ),
         ),
+        ChangeNotifierProvider<AllergyProvider>(
+          create: (_) => AllergyProvider(
+            allergyRepository: AllergyRepository(apiClient: apiClient),
+          ),
+        ),
+        ChangeNotifierProvider<SettingsProvider>(
+          create: (_) => SettingsProvider(),
+        ),
+        ChangeNotifierProvider<ProgressProvider>(
+          create: (_) => ProgressProvider(prefs: prefs),
+        ),
       ],
-      child: MaterialApp(
+      child: Consumer<SettingsProvider>(
+        builder: (context, settings, child) {
+          return MaterialApp(
         navigatorKey: globalNavigatorKey,
         title: 'Bonyaan',
 
@@ -71,7 +90,7 @@ class MyApp extends StatelessWidget {
 
         darkTheme: AppTheme.darkTheme,
 
-        themeMode: ThemeMode.system,
+        themeMode: settings.themeMode,
 
         home: Consumer2<AuthProvider, OnboardingProvider>(
 
@@ -148,16 +167,11 @@ class MyApp extends StatelessWidget {
                 return const LoginPage();
 
             }
-
           },
-
         ),
-
+      );
+        },
       ),
-
     );
-
   }
-
 }
-

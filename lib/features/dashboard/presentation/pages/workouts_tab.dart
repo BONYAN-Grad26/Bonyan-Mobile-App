@@ -59,6 +59,7 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final workoutProvider = context.watch<WorkoutProvider>();
+    final progressProvider = context.watch<ProgressProvider>();
 
     if (workoutProvider.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -130,20 +131,7 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: () => showComingSoonSheet(context, 'Custom Workout'),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: Size.zero,
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: colorScheme.onPrimary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  ),
-                  child: const Text('Custom Workout', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
+
               ],
             ),
             const SizedBox(height: 24),
@@ -204,14 +192,25 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
                                       ),
                                 ),
                                 const SizedBox(height: 8),
-                                  Text(
-                                    isRest ? 'Rest' : (wDay.session?.split(' ').first ?? 'Workout'),
-                                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                          color: colorScheme.onSurface,
-                                        ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (isRest || (wDay != null && progressProvider.isWorkoutCompleted((wDay.session ?? 'Workout').hashCode))) ...[
+                                      Icon(Icons.check_circle, size: 14, color: colorScheme.primary),
+                                      const SizedBox(width: 4),
+                                    ],
+                                    Flexible(
+                                      child: Text(
+                                        isRest ? 'Rest' : (wDay!.session?.split(' ').first ?? 'Workout'),
+                                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              color: colorScheme.onSurface,
+                                            ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -246,7 +245,7 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
                     Icon(Icons.fitness_center, size: 64, color: colorScheme.primary.withValues(alpha: 0.5)),
                     const SizedBox(height: 16),
                     Text(
-                      'No Workouts Scheduled',
+                      currentPlan == null ? 'No Workouts Scheduled' : 'Rest Day',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: colorScheme.onSurface,
@@ -254,31 +253,34 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Generate your AI-powered weekly workout plan to see your personalized schedule for today.',
+                      currentPlan == null 
+                        ? 'Generate your AI-powered weekly workout plan to see your personalized schedule for today.'
+                        : 'Take a well-deserved rest today. Your body needs it to recover and build muscle!',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: colorScheme.onSurface.withValues(alpha: 0.70),
                       ),
                     ),
                     const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: _isGenerating ? null : _generatePlan,
-                      icon: _isGenerating 
-                          ? SizedBox(
-                              width: 18, height: 18, 
-                              child: CircularProgressIndicator(strokeWidth: 2, color: colorScheme.onPrimary)
-                            )
-                          : const Icon(Icons.auto_awesome),
-                      label: const Text('Generate AI Plan', style: TextStyle(fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colorScheme.primary,
-                        foregroundColor: colorScheme.onPrimary,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                    if (currentPlan == null)
+                      ElevatedButton.icon(
+                        onPressed: _isGenerating ? null : _generatePlan,
+                        icon: _isGenerating 
+                            ? SizedBox(
+                                width: 18, height: 18, 
+                                child: CircularProgressIndicator(strokeWidth: 2, color: colorScheme.onPrimary)
+                              )
+                            : const Icon(Icons.auto_awesome),
+                        label: const Text('Generate AI Plan', style: TextStyle(fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: colorScheme.primary,
+                          foregroundColor: colorScheme.onPrimary,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               )
@@ -288,8 +290,8 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
                   // Workout is a WorkoutDay
                   final name = workout.session ?? 'Workout Session';
                   final type = 'Daily Session';
-                  final duration = '60 min'; // Default since backend doesn't provide
                   final exercisesCount = workout.exercises?.length ?? 0;
+                  final duration = '${exercisesCount * 5 + 10} min'; // Est: 5m per exercise + 10m warmup
                   final scheduled = _selectedDate.toIso8601String().split('T')[0];
                   
                   final focusAreas = <String>[];
@@ -353,20 +355,11 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
                                   ],
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              ElevatedButton(
-                                onPressed: () => showComingSoonSheet(context, 'Start Workout'),
-                                style: ElevatedButton.styleFrom(
-                                  minimumSize: Size.zero,
-                                  backgroundColor: colorScheme.primary,
-                                  foregroundColor: colorScheme.onPrimary,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                ),
-                                child: const Text('Start', style: TextStyle(fontWeight: FontWeight.bold)),
+                              Checkbox(
+                                value: progressProvider.isWorkoutCompleted(name.hashCode),
+                                onChanged: (val) => progressProvider.toggleWorkout(name.hashCode, val ?? false),
                               ),
+
                             ],
                           ),
                           const SizedBox(height: 18),
@@ -434,56 +427,77 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
                 }).toList(),
               ),
             const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: colorScheme.surface,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'This Week’s Stats',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.onSurface,
-                        ),
+            Builder(
+              builder: (context) {
+                int totalWorkouts = 0;
+                int totalDuration = 0;
+                if (workoutProvider.currentPlan?.weeklySchedule != null) {
+                  workoutProvider.currentPlan!.weeklySchedule!.forEach((day, workout) {
+                    if (workout.session != null && !workout.session!.toLowerCase().contains('rest')) {
+                      totalWorkouts++;
+                      totalDuration += 45; // Default to 45 mins per workout
+                    }
+                  });
+                }
+                if (totalWorkouts == 0) {
+                  totalWorkouts = 5;
+                  totalDuration = 5 * 45;
+                }
+
+                int completedWorkouts = progressProvider.completedWorkoutsCount;
+
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
                   ),
-                  const SizedBox(height: 16),
-                  _buildStatsRow(context, 'Completed', '2/5', 0.40, colorScheme.primary),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Total Duration',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurface.withOpacity(0.65),
-                        ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'This Week’s Stats',
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.onSurface,
+                            ),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildStatsRow(context, 'Completed', '$completedWorkouts / $totalWorkouts', completedWorkouts / totalWorkouts, colorScheme.primary),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Total Duration',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurface.withOpacity(0.65),
+                            ),
+                      ),
+                      Text(
+                        '${(totalDuration / 60).toStringAsFixed(1)} hrs',
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.onSurface,
+                            ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Est. Calories Burned',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurface.withOpacity(0.65),
+                            ),
+                      ),
+                      Text(
+                        '${(totalDuration * 8)}', // 8 calories per minute average
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.primary,
+                            ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    '6.5 hrs',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.onSurface,
-                        ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Est. Calories Burned',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurface.withOpacity(0.65),
-                        ),
-                  ),
-                  Text(
-                    '2,140',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.primary,
-                        ),
-                  ),
-                ],
-              ),
+                );
+              }
             ),
             const SizedBox(height: 30),
           ],

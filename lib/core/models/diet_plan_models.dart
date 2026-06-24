@@ -17,9 +17,9 @@ class Ingredient {
   factory Ingredient.fromJson(Map<String, dynamic> json) {
     return Ingredient(
       ingredientId: json['ingredientId'] as int?,
-      ingredientName: json['ingredientName'] as String?,
-      quantity: (json['quantity'] as num?)?.toDouble(),
-      measurementUnit: json['measurementUnit'] as String?,
+      ingredientName: json['ingredientName'] as String? ?? '',
+      quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
+      measurementUnit: json['measurementUnit'] as String? ?? '',
     );
   }
 
@@ -65,15 +65,16 @@ class Meal {
 
     return Meal(
       id: json['id'] as int?,
-      name: json['name'] as String?,
-      mealType: json['mealType'] as String?,
-      description: json['description'] as String?,
+      name: json['name'] as String? ?? '',
+      mealType: json['mealType'] as String? ?? '',
+      description: json['description'] as String? ?? '',
       preparationTime: json['preparationTime'] as int?,
-      preparationInstructions: json['preparationInstructions'] as String?,
+      preparationInstructions: json['preparationInstructions'] as String? ?? '',
       order: json['order'] as int?,
       ingredients: (json['ingredients'] as List?)
-          ?.map((item) => Ingredient.fromJson(item as Map<String, dynamic>))
-          .toList(),
+          ?.where((e) => e != null)
+          .map((item) => Ingredient.fromJson(Map<String, dynamic>.from(item as Map)))
+          .toList() ?? [],
     );
   }
 
@@ -129,23 +130,35 @@ class DayPlan {
         ? jsonMap['data'] as Map<String, dynamic>
         : jsonMap;
 
-    return DayPlan(
-      id: json['id'] as int?,
-      date: json['date'] as String?,
-      dayOfWeek: json['dayOfWeek'] as int?,
-      targetCalories: (json['targetCalories'] as num?)?.toDouble(),
-      targetProtein: (json['targetProtein'] as num?)?.toDouble(),
-      targetCarbs: (json['targetCarbs'] as num?)?.toDouble(),
-      targetFat: (json['targetFat'] as num?)?.toDouble(),
-      targetFiber: (json['targetFiber'] as num?)?.toDouble(),
-      targetSugar: (json['targetSugar'] as num?)?.toDouble(),
-      waterGoal: (json['waterGoal'] as num?)?.toDouble(),
-      aiDailyTips: json['aiDailyTips'] as String?,
-      meals: (json['meals'] as List?)
-          ?.map((item) => Meal.fromJson(item as Map<String, dynamic>))
-          .toList(),
-    );
-  }
+      List<Meal> parsedMeals = [];
+      var rawMeals = json['data'] != null ? json['data']['meals'] : json['meals'];
+
+      if (rawMeals is List) {
+        for (int i = 0; i < rawMeals.length; i++) {
+          try {
+            Map<String, dynamic> mealMap = Map<String, dynamic>.from(rawMeals[i] as Map);
+            parsedMeals.add(Meal.fromJson(mealMap));
+          } catch (e) {
+            // Silently ignore failed meals or log to analytics in production
+          }
+        }
+      }
+
+      return DayPlan(
+        id: json['id'] as int?,
+        date: json['date'] as String? ?? '',
+        dayOfWeek: json['dayOfWeek'] as int?,
+        targetCalories: (json['targetCalories'] as num?)?.toDouble() ?? 0.0,
+        targetProtein: (json['targetProtein'] as num?)?.toDouble() ?? 0.0,
+        targetCarbs: (json['targetCarbs'] as num?)?.toDouble() ?? 0.0,
+        targetFat: (json['targetFat'] as num?)?.toDouble() ?? 0.0,
+        targetFiber: (json['targetFiber'] as num?)?.toDouble() ?? 0.0,
+        targetSugar: (json['targetSugar'] as num?)?.toDouble() ?? 0.0,
+        waterGoal: (json['waterGoal'] as num?)?.toDouble() ?? 0.0,
+        aiDailyTips: json['aiDailyTips'] as String? ?? '',
+        meals: parsedMeals,
+      );
+    }
 
   Map<String, dynamic> toJson() {
     return {

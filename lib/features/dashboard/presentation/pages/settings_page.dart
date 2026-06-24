@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
+import '../../../../core/utils/ui_helpers.dart';
+import '../../../../core/providers/providers.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -9,6 +11,7 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final settings = Provider.of<SettingsProvider>(context);
 
     return SafeArea(
       child: SingleChildScrollView(
@@ -30,68 +33,16 @@ class SettingsPage extends StatelessWidget {
                 color: colorScheme.onSurface.withOpacity(0.70),
               ),
             ),
-            const SizedBox(height: 24),
             _buildSectionTitle(context, 'Notifications'),
             const SizedBox(height: 12),
-            _buildToggleRow(context, 'Meal Reminders', 'Get reminded to log your meals', true),
-            _buildToggleRow(context, 'Workout Alerts', 'Get notified when workouts are ready', true),
-            _buildToggleRow(context, 'Progress Updates', 'Weekly summary of your progress', true),
-            _buildToggleRow(context, 'AI Insights', 'Daily AI-powered health recommendations', false),
-            const SizedBox(height: 24),
-            _buildSectionTitle(context, 'Privacy & Security'),
-            const SizedBox(height: 12),
-            _buildToggleRow(context, 'Private Profile', 'Only you can see your health data', true),
-            _buildToggleRow(context, 'Data Analytics', 'Allow Bonyan to improve using your data', false),
-            _buildToggleRow(context, 'Research Studies', 'Participate in health research (optional)', false),
+            _buildToggleRow(context, 'Meal Reminders', 'Get reminded to log your meals', settings.mealReminders, (v) => settings.setMealReminders(v)),
+            _buildToggleRow(context, 'Workout Alerts', 'Get notified when workouts are ready', settings.workoutAlerts, (v) => settings.setWorkoutAlerts(v)),
+
             const SizedBox(height: 24),
             _buildSectionTitle(context, 'Appearance'),
             const SizedBox(height: 12),
             _buildAppearanceOption(context),
             const SizedBox(height: 24),
-            _buildSectionTitle(context, 'Language & Region'),
-            const SizedBox(height: 12),
-            _buildSelectRow(context, 'Language', ['English (US)', 'English (UK)', 'Spanish', 'French', 'Arabic']),
-            const SizedBox(height: 12),
-            _buildSelectRow(context, 'Timezone', ['UTC-5 (Eastern Time)', 'UTC-6 (Central Time)', 'UTC-7 (Mountain Time)', 'UTC-8 (Pacific Time)', 'UTC+0 (GMT)']),
-            const SizedBox(height: 12),
-            _buildMeasurementOption(context),
-            const SizedBox(height: 24),
-
-            // FIXED: Removed the fatal `Size.fromHeight` infinite width issue!
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: colorScheme.primary,
-                      foregroundColor: colorScheme.onPrimary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      minimumSize: const Size(0, 52), // FIXED BOUNDS
-                    ),
-                    child: const Text('Save Changes', overflow: TextOverflow.ellipsis, maxLines: 1),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {},
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: colorScheme.onSurface,
-                      side: BorderSide(color: colorScheme.outline.withOpacity(0.3)),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      minimumSize: const Size(0, 52), // FIXED BOUNDS
-                    ),
-                    child: const Text('Reset', overflow: TextOverflow.ellipsis, maxLines: 1),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 30),
             _buildSectionTitle(context, 'Account'),
             const SizedBox(height: 12),
             SizedBox(
@@ -131,7 +82,7 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildToggleRow(BuildContext context, String title, String subtitle, bool enabled) {
+  Widget _buildToggleRow(BuildContext context, String title, String subtitle, bool enabled, ValueChanged<bool> onChanged) {
     final colorScheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
@@ -166,7 +117,7 @@ class SettingsPage extends StatelessWidget {
               ],
             ),
           ),
-          Checkbox(value: enabled, onChanged: (_) {}),
+          Checkbox(value: enabled, onChanged: (v) => onChanged(v ?? false)),
         ],
       ),
     );
@@ -174,6 +125,7 @@ class SettingsPage extends StatelessWidget {
 
   Widget _buildAppearanceOption(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final settings = Provider.of<SettingsProvider>(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -195,29 +147,11 @@ class SettingsPage extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              _buildPill(context, 'Light', true),
+              _buildPill(context, 'Light', settings.themeMode == ThemeMode.light, () => settings.setThemeMode(ThemeMode.light)),
               const SizedBox(width: 10),
-              _buildPill(context, 'Dark', false),
+              _buildPill(context, 'Dark', settings.themeMode == ThemeMode.dark, () => settings.setThemeMode(ThemeMode.dark)),
               const SizedBox(width: 10),
-              _buildPill(context, 'System', false),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Accent Color',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            children: [
-              _buildAccentDot(context, colorScheme.primary, true),
-              _buildAccentDot(context, Colors.blue.shade500, false),
-              _buildAccentDot(context, Colors.orange.shade500, false),
-              _buildAccentDot(context, Colors.pink.shade500, false),
+              _buildPill(context, 'System', settings.themeMode == ThemeMode.system, () => settings.setThemeMode(ThemeMode.system)),
             ],
           ),
         ],
@@ -227,6 +161,7 @@ class SettingsPage extends StatelessWidget {
 
   Widget _buildMeasurementOption(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final settings = Provider.of<SettingsProvider>(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -248,9 +183,9 @@ class SettingsPage extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              _buildPill(context, 'Metric (kg, cm)', true),
+              _buildPill(context, 'Metric (kg, cm)', settings.measurementUnit == 'Metric (kg, cm)', () => settings.setMeasurementUnit('Metric (kg, cm)')),
               const SizedBox(width: 10),
-              _buildPill(context, 'Imperial (lbs, in)', false),
+              _buildPill(context, 'Imperial (lbs, in)', settings.measurementUnit == 'Imperial (lbs, in)', () => settings.setMeasurementUnit('Imperial (lbs, in)')),
             ],
           ),
         ],
@@ -258,8 +193,9 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSelectRow(BuildContext context, String label, List<String> options) {
+  Widget _buildLanguageSelect(BuildContext context, SettingsProvider settings) {
     final colorScheme = Theme.of(context).colorScheme;
+    final options = ['English (US)', 'English (UK)', 'Spanish', 'French', 'Arabic'];
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -272,7 +208,7 @@ class SettingsPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            label,
+            'Language',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
               fontWeight: FontWeight.w600,
               color: colorScheme.onSurface,
@@ -280,8 +216,8 @@ class SettingsPage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
-            value: options.first,
-            isExpanded: true, // FIXED: Prevents text overflow crashes in dropdowns
+            value: settings.language,
+            isExpanded: true,
             decoration: InputDecoration(
               filled: true,
               fillColor: colorScheme.surface,
@@ -298,47 +234,45 @@ class SettingsPage extends StatelessWidget {
               ),
             )
                 .toList(),
-            onChanged: (_) {},
+            onChanged: (v) {
+              if (v != null) {
+                settings.setLanguage(v);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Language updated to $v. Restart app to apply full changes.', style: const TextStyle(color: Colors.white)), backgroundColor: Colors.green),
+                );
+              }
+            },
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPill(BuildContext context, String label, bool selected) {
+  Widget _buildPill(BuildContext context, String label, bool selected, VoidCallback onTap) {
     final colorScheme = Theme.of(context).colorScheme;
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: selected ? colorScheme.primary.withOpacity(0.12) : colorScheme.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: selected ? colorScheme.primary : colorScheme.outline.withOpacity(0.16),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: selected ? colorScheme.primary.withOpacity(0.12) : colorScheme.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: selected ? colorScheme.primary : colorScheme.outline.withOpacity(0.16),
+            ),
           ),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: selected ? colorScheme.primary : colorScheme.onSurface,
+          child: Center(
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: selected ? colorScheme.primary : colorScheme.onSurface,
+              ),
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildAccentDot(BuildContext context, Color color, bool selected) {
-    return Container(
-      width: 42,
-      height: 42,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(14),
-        border: selected ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2) : null,
       ),
     );
   }

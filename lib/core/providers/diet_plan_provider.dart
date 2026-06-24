@@ -63,6 +63,12 @@ class DietPlanProvider extends ChangeNotifier {
       _currentPlan = plan;
       // Prepend the newly generated plan to the cached list
       _weeklyPlans = [plan, ..._weeklyPlans];
+      
+      // Update todayPlan so the UI immediately reflects the new meals
+      if (plan.days != null && plan.days!.isNotEmpty) {
+        _todayPlan = plan.days!.first;
+      }
+
       _isLoading = false;
       notifyListeners();
       return true;
@@ -101,6 +107,10 @@ class DietPlanProvider extends ChangeNotifier {
 
     try {
       _weeklyPlans = await _dietPlanRepository.getWeeklyPlans();
+      if (_weeklyPlans.isNotEmpty) {
+        // Fetch the full plan by ID to get the populated 'days' list
+        _currentPlan = await _dietPlanRepository.getPlanById(_weeklyPlans.first.id!);
+      }
       _isLoading = false;
       notifyListeners();
     } on ApiException catch (e) {
@@ -121,33 +131,7 @@ class DietPlanProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final weeklyPlans = await _dietPlanRepository.getWeeklyPlans();
-      if (weeklyPlans.isEmpty) {
-        throw NotFoundException(message: 'No weekly plans found');
-      }
-
-      // We assume the first weekly plan is the active/current one
-      final currentWeeklyPlan = weeklyPlans.first;
-      _currentPlan = currentWeeklyPlan;
-
-      // Get local device date in YYYY-MM-DD format
-      final todayStr = DateTime.now().toIso8601String().split('T')[0];
-
-      DayPlan? todayDayPlan;
-      if (currentWeeklyPlan.days != null) {
-        for (final dayPlan in currentWeeklyPlan.days!) {
-          if (dayPlan.date == todayStr) {
-            todayDayPlan = dayPlan;
-            break;
-          }
-        }
-      }
-
-      if (todayDayPlan == null) {
-        throw NotFoundException(message: 'No daily plan found for today');
-      }
-
-      _todayPlan = todayDayPlan;
+      _todayPlan = await _dietPlanRepository.getTodayPlan();
       _isLoading = false;
       notifyListeners();
     } on NotFoundException {
