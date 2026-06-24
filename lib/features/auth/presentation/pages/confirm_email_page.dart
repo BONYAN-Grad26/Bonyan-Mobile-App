@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/widgets/bonyaan_logo.dart';
 import '../providers/auth_provider.dart';
 
 class ConfirmEmailPage extends StatefulWidget {
@@ -91,8 +92,10 @@ class _ConfirmEmailPageState extends State<ConfirmEmailPage> {
                     child: Form(
                       key: _formKey,
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
+                          const BonyaanLogo(width: 140),
+                          const SizedBox(height: 20),
                           Text(
                             'Verify your account',
                             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -102,6 +105,7 @@ class _ConfirmEmailPageState extends State<ConfirmEmailPage> {
                           const SizedBox(height: 8),
                           Text(
                             'Enter the 6-digit code sent to ${widget.email}',
+                            textAlign: TextAlign.center,
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   color: colorScheme.onSurface.withValues(alpha: 0.74),
                                 ),

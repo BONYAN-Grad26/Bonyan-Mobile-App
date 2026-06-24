@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/utils/ui_helpers.dart';
+import '../../../../core/widgets/bonyaan_logo.dart';
 import '../widgets/metric_card.dart';
 
 class HomeTab extends StatefulWidget {
@@ -16,75 +17,6 @@ class HomeTab extends StatefulWidget {
 }
 
 class _HomeTabState extends State<HomeTab> {
-  bool _isGenerating = false;
-  String _generationStep = '';
-
-  Future<void> _generatePlans() async {
-    setState(() {
-      _isGenerating = true;
-      _generationStep = 'Generating Diet Plan (1/2)...';
-    });
-
-    try {
-      final dietProvider = context.read<DietPlanProvider>();
-      final workoutProvider = context.read<WorkoutProvider>();
-      
-      final todayStr = DateTime.now().toIso8601String().split('T')[0];
-
-      final dietResult = await dietProvider.generateWeeklyPlan(startDate: todayStr, weekNumber: 1);
-      
-      if (!dietResult) {
-        if (mounted) {
-          final error = dietProvider.generationError ?? dietProvider.errorMessage ?? 'Failed to generate diet plan.';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error)),
-          );
-          if (dietProvider.generationError != null) {
-            _loadData();
-          }
-        }
-        return;
-      }
-
-      if (mounted) {
-        setState(() {
-          _generationStep = 'Generating Workout Plan (2/2)...';
-        });
-      }
-
-      final workoutResult = await workoutProvider.generateWeeklyPlan();
-
-      if (mounted) {
-        if (!workoutResult) {
-          final error = workoutProvider.generationError ?? workoutProvider.errorMessage ?? 'Failed to generate workout plan.';
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(error)),
-          );
-          if (workoutProvider.generationError != null) {
-            await _loadData();
-          }
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Weekly plan generated successfully!')),
-          );
-          await _loadData();
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error generating plans: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isGenerating = false;
-          _generationStep = '';
-        });
-      }
-    }
-  }
 
   @override
   void initState() {
@@ -98,7 +30,6 @@ class _HomeTabState extends State<HomeTab> {
     final profileProvider = context.read<ProfileProvider>();
     final dietProvider = context.read<DietPlanProvider>();
     final workoutProvider = context.read<WorkoutProvider>();
-    final authProvider = context.read<AuthProvider>();
 
     final futures = <Future<void>>[
       profileProvider.fetchMyHealthProfile(),
@@ -169,8 +100,10 @@ class _HomeTabState extends State<HomeTab> {
     if (dietProvider.todayPlan?.meals != null && dietProvider.todayPlan!.meals!.isNotEmpty) {
       int mealCount = dietProvider.todayPlan!.meals!.length;
       for (final meal in dietProvider.todayPlan!.meals!) {
-        final mealId = meal.id ?? ((dietProvider.todayPlan!.dayOfWeek ?? 0).hashCode ^ meal.name.hashCode);
-        if (progressProvider.isMealCompleted(mealId)) {
+        final d = dietProvider.todayPlan!.dayOfWeek ?? 0;
+        final mId = meal.id ?? meal.name.hashCode;
+        final uniqueId = d * 100000 + (mId.abs() % 100000);
+        if (progressProvider.isMealCompleted(uniqueId)) {
           caloriesCurrent += (caloriesGoal / mealCount).round();
           proteinCurrent += (proteinGoal / mealCount).round();
         }
@@ -181,20 +114,23 @@ class _HomeTabState extends State<HomeTab> {
       onRefresh: _loadData,
       child: CustomScrollView(
         slivers: [
-          SliverAppBar(
-            pinned: true,
-            floating: false,
-            expandedHeight: 120,
-            backgroundColor: colorScheme.surface,
-            foregroundColor: colorScheme.onSurface,
-            elevation: 0,
-            flexibleSpace: FlexibleSpaceBar(
-              titlePadding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-              title: Text(
-                'Good morning, $greetingName!',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurface,
+          SliverSafeArea(
+            bottom: false,
+            sliver: SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              sliver: SliverToBoxAdapter(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Good morning, $greetingName!',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    const BonyaanLogo.small(),
+                  ],
                 ),
               ),
             ),
@@ -217,7 +153,6 @@ class _HomeTabState extends State<HomeTab> {
                     icon: Icons.local_fire_department,
                     variant: MetricVariant.nutrition,
                     progress: caloriesCurrent / caloriesGoal * 100,
-                    trend: const MetricTrend(value: 5, direction: TrendDirection.down),
                   ),
                   MetricCard(
                     title: 'Protein',
@@ -226,7 +161,6 @@ class _HomeTabState extends State<HomeTab> {
                     icon: Icons.restaurant,
                     variant: MetricVariant.health,
                     progress: proteinCurrent / proteinGoal * 100,
-                    trend: const MetricTrend(value: 3, direction: TrendDirection.up),
                   ),
                 ],
               ),
@@ -276,13 +210,22 @@ class _HomeTabState extends State<HomeTab> {
                     }
                     if (totalWorkouts == 0) totalWorkouts = 4;
 
-                    int completedWorkouts = progressProvider.completedWorkoutsCount;
+                    int completedWorkouts = 0;
+                    if (workoutProvider.currentPlan?.weeklySchedule != null) {
+                      workoutProvider.currentPlan!.weeklySchedule!.values.forEach((workout) {
+                        final name = workout.session ?? 'Rest Day';
+                        final isRestDay = name.toLowerCase().contains('rest') || (workout.exercises == null || workout.exercises!.isEmpty);
+                        if (!isRestDay && progressProvider.isWorkoutCompleted(name.hashCode)) {
+                          completedWorkouts++;
+                        }
+                      });
+                    }
 
                     return Column(
                       children: [
-                        _buildProgressPanel(context, 'Workouts Completed', '$completedWorkouts / $totalWorkouts', completedWorkouts / totalWorkouts, colorScheme.primary),
+                        _buildProgressPanel(context, 'Workouts Completed', completedWorkouts.toDouble(), totalWorkouts.toDouble(), colorScheme.primary),
                         const SizedBox(height: 12),
-                        _buildProgressPanel(context, 'Meals Logged', '$completedMeals / $totalMeals', completedMeals / totalMeals, colorScheme.secondary),
+                        _buildProgressPanel(context, 'Meals Logged', completedMeals.toDouble(), totalMeals.toDouble(), colorScheme.secondary),
                       ],
                     );
                   })(),
@@ -334,8 +277,9 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
-  Widget _buildProgressPanel(BuildContext context, String label, String value, double progress, Color accent) {
+  Widget _buildProgressPanel(BuildContext context, String label, double current, double target, Color accent) {
     final colorScheme = Theme.of(context).colorScheme;
+    
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -344,92 +288,59 @@ class _HomeTabState extends State<HomeTab> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween<double>(begin: 0.0, end: current),
+        duration: const Duration(milliseconds: 600),
+        curve: Curves.easeOutCubic,
+        builder: (context, animValue, child) {
+          final currentProgress = target > 0 ? (animValue / target) : 0.0;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                label,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurface.withOpacity(0.75),
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    label,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurface.withOpacity(0.75),
+                    ),
+                  ),
+                  Text(
+                    '${animValue.toInt()} / ${target.toInt()}',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
+                    ),
+                  ),
+                ],
               ),
-              Text(
-                value,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurface,
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                height: 10,
+                alignment: Alignment.centerLeft,
+                decoration: BoxDecoration(
+                  color: colorScheme.outline.withOpacity(0.18),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: FractionallySizedBox(
+                  widthFactor: currentProgress.clamp(0.0, 1.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: accent,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            height: 10,
-            alignment: Alignment.centerLeft,
-            decoration: BoxDecoration(
-              color: colorScheme.outline.withOpacity(0.18),
-              borderRadius: BorderRadius.circular(99),
-            ),
-            child: FractionallySizedBox(
-              widthFactor: progress.clamp(0.0, 1.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: accent,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 
-  Widget _buildActionButton(BuildContext context, IconData icon, String label) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Expanded(
-      child: ElevatedButton(
-        onPressed: () {
-          if (label == 'Log Meal') {
-            widget.onNavigate?.call(1);
-          } else if (label == 'Workout') {
-            widget.onNavigate?.call(2);
-          } else {
-            showComingSoonSheet(context, label);
-          }
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: colorScheme.surface,
-          foregroundColor: colorScheme.onSurface,
-          elevation: 0,
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: colorScheme.outline.withOpacity(0.16)),
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 24, color: colorScheme.primary),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildUpcomingCard(BuildContext context, String title, String subtitle, Color accent, {int? navigateIndex}) {
     final colorScheme = Theme.of(context).colorScheme;

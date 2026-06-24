@@ -13,6 +13,7 @@ import 'features/dashboard/presentation/pages/main_dashboard.dart';
 import 'features/onboarding/data/repositories/metrics_repository.dart';
 import 'features/onboarding/presentation/pages/onboarding_wizard.dart';
 import 'features/onboarding/presentation/providers/onboarding_provider.dart';
+import 'features/splash/splash_screen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -26,7 +27,7 @@ Future<void> main() async {
   final authProvider = AuthProvider(tokenStorage: tokenStorage);
   
   final apiClient = ApiClient(
-    baseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'http://127.0.0.1:8080'),
+    baseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'http://10.0.2.2:8080'),
     tokenStorage: tokenStorage,
     onUnauthorized: () {
       authProvider.logout();
@@ -83,93 +84,54 @@ class MyApp extends StatelessWidget {
       child: Consumer<SettingsProvider>(
         builder: (context, settings, child) {
           return MaterialApp(
-        navigatorKey: globalNavigatorKey,
-        title: 'Bonyaan',
+            navigatorKey: globalNavigatorKey,
+            title: 'Bonyaan',
+            theme: AppTheme.lightTheme,
+            darkTheme: AppTheme.darkTheme,
+            themeMode: settings.themeMode,
+            debugShowCheckedModeBanner: false,
+            home: SplashScreen(
+              child: Consumer2<AuthProvider, OnboardingProvider>(
+                builder: (context, authProvider, onboardingProvider, _) {
+                  switch (authProvider.status) {
+                    case AuthStatus.initial:
+                    case AuthStatus.loading:
+                      return const Scaffold(
+                        body: Center(
+                          child: CircularProgressIndicator(),
+                        ),
+                      );
 
-        theme: AppTheme.lightTheme,
+                    case AuthStatus.authenticated:
+                      if (!onboardingProvider.hasCheckedExistingProfile &&
+                          !onboardingProvider.isCheckingExistingProfile) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          context.read<OnboardingProvider>().loadExistingProfileIfNeeded();
+                        });
+                      }
 
-        darkTheme: AppTheme.darkTheme,
+                      if (onboardingProvider.isCheckingExistingProfile) {
+                        return const Scaffold(
+                          body: Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
 
-        themeMode: settings.themeMode,
+                      if (onboardingProvider.submissionStatus == OnboardingSubmissionStatus.success ||
+                          onboardingProvider.savedProfile != null) {
+                        return const MainDashboard();
+                      }
 
-        home: Consumer2<AuthProvider, OnboardingProvider>(
+                      return const OnboardingWizard();
 
-          builder: (context, authProvider, onboardingProvider, _) {
-
-            switch (authProvider.status) {
-
-              case AuthStatus.initial:
-
-              case AuthStatus.loading:
-
-                return const Scaffold(
-
-                  body: Center(
-
-                    child: CircularProgressIndicator(),
-
-                  ),
-
-                );
-
-              case AuthStatus.authenticated:
-
-                if (!onboardingProvider.hasCheckedExistingProfile &&
-
-                    !onboardingProvider.isCheckingExistingProfile) {
-
-
-
-                  // This defers the call until the frame finishes rendering
-
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-
-                    context.read<OnboardingProvider>().loadExistingProfileIfNeeded();
-
-                  });
-
-
-
-                }
-
-
-
-                if (onboardingProvider.isCheckingExistingProfile) {
-
-                  return const Scaffold(
-
-                    body: Center(
-
-                      child: CircularProgressIndicator(),
-
-                    ),
-
-                  );
-
-                }
-
-
-
-                if (onboardingProvider.submissionStatus == OnboardingSubmissionStatus.success ||
-
-                    onboardingProvider.savedProfile != null) {
-
-                  return const MainDashboard();
-
-                }
-
-
-
-                return const OnboardingWizard();
-
-              case AuthStatus.unauthenticated:
-
-                return const LoginPage();
-
-            }
-          },
-        ),
-      );
+                    case AuthStatus.unauthenticated:
+                      return const LoginPage();
+                  }
+                },
+              ),
+            ),
+          );
         },
       ),
     );

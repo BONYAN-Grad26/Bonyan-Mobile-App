@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
-import '../../../../core/utils/ui_helpers.dart';
 import '../../../../core/providers/providers.dart';
+import '../../../../core/widgets/bonyaan_logo.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -19,19 +19,31 @@ class SettingsPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Settings',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Manage your preferences and account settings',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurface.withOpacity(0.70),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Settings',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Manage your preferences',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurface.withOpacity(0.70),
+                      ),
+                    ),
+                  ],
+                ),
+                const BonyaanLogo.small(),
+              ],
             ),
             _buildSectionTitle(context, 'Notifications'),
             const SizedBox(height: 12),
@@ -159,94 +171,6 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildMeasurementOption(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final settings = Provider.of<SettingsProvider>(context);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Measurement Units',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _buildPill(context, 'Metric (kg, cm)', settings.measurementUnit == 'Metric (kg, cm)', () => settings.setMeasurementUnit('Metric (kg, cm)')),
-              const SizedBox(width: 10),
-              _buildPill(context, 'Imperial (lbs, in)', settings.measurementUnit == 'Imperial (lbs, in)', () => settings.setMeasurementUnit('Imperial (lbs, in)')),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLanguageSelect(BuildContext context, SettingsProvider settings) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final options = ['English (US)', 'English (UK)', 'Spanish', 'French', 'Arabic'];
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Language',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            value: settings.language,
-            isExpanded: true,
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: colorScheme.surface,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: colorScheme.outline.withOpacity(0.24)),
-              ),
-            ),
-            items: options
-                .map(
-                  (option) => DropdownMenuItem(
-                value: option,
-                child: Text(option),
-              ),
-            )
-                .toList(),
-            onChanged: (v) {
-              if (v != null) {
-                settings.setLanguage(v);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Language updated to $v. Restart app to apply full changes.', style: const TextStyle(color: Colors.white)), backgroundColor: Colors.green),
-                );
-              }
-            },
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildPill(BuildContext context, String label, bool selected, VoidCallback onTap) {
     final colorScheme = Theme.of(context).colorScheme;

@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/providers/providers.dart';
 import '../../../../core/providers/allergy_provider.dart';
-import '../../../../core/utils/ui_helpers.dart';
+import '../../../../core/widgets/bonyaan_logo.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -83,7 +83,7 @@ class _ProfilePageState extends State<ProfilePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
                   child: Column(
@@ -106,7 +106,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ],
                   ),
                 ),
-
+                const BonyaanLogo.small(),
               ],
             ),
             const SizedBox(height: 24),
@@ -191,10 +191,10 @@ class _ProfilePageState extends State<ProfilePage> {
                                 ),
                               ],
                             ),
-                            if (authUser?.email != null && authUser!.email!.isNotEmpty) ...[
+                            if (authUser?.email != null && authUser!.email.isNotEmpty) ...[
                               const SizedBox(height: 4),
                               Text(
-                                authUser.email!,
+                                authUser.email,
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                       color: colorScheme.onSurface.withOpacity(0.70),
                                     ),

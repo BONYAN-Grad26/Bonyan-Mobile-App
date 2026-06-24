@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/widgets/bonyaan_logo.dart';
 import 'confirm_email_page.dart';
 import '../providers/auth_provider.dart';
 
@@ -97,17 +98,13 @@ class _RegisterPageState extends State<RegisterPage> {
                     child: Form(
                       key: _formKey,
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Text(
-                            'Build your Bonyaan profile',
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                          ),
-                          const SizedBox(height: 8),
+                          const BonyaanLogo.header(),
+                          const SizedBox(height: 16),
                           Text(
                             'Set up your account to unlock personalized nutrition and fitness plans.',
+                            textAlign: TextAlign.center,
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   color: colorScheme.onSurface.withValues(alpha: 0.72),
                                 ),

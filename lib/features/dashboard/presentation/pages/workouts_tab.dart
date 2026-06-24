@@ -3,8 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/models/models.dart';
 import '../../../../core/providers/providers.dart';
-import '../../../../core/utils/ui_helpers.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 
 class WorkoutsTab extends StatefulWidget {
   const WorkoutsTab({super.key});
@@ -195,13 +193,13 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    if (isRest || (wDay != null && progressProvider.isWorkoutCompleted((wDay.session ?? 'Workout').hashCode))) ...[
+                                    if (isRest || progressProvider.isWorkoutCompleted((wDay.session ?? 'Workout').hashCode)) ...[
                                       Icon(Icons.check_circle, size: 14, color: colorScheme.primary),
                                       const SizedBox(width: 4),
                                     ],
                                     Flexible(
                                       child: Text(
-                                        isRest ? 'Rest' : (wDay!.session?.split(' ').first ?? 'Workout'),
+                                        isRest ? 'Rest' : (wDay.session?.split(' ').first ?? 'Workout'),
                                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                               fontWeight: FontWeight.bold,
                                               color: colorScheme.onSurface,
@@ -355,10 +353,11 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
                                   ],
                                 ),
                               ),
-                              Checkbox(
-                                value: progressProvider.isWorkoutCompleted(name.hashCode),
-                                onChanged: (val) => progressProvider.toggleWorkout(name.hashCode, val ?? false),
-                              ),
+                              if (!(name.toLowerCase().contains('rest') || (workout.exercises == null || workout.exercises!.isEmpty)))
+                                Checkbox(
+                                  value: progressProvider.isWorkoutCompleted(name.hashCode),
+                                  onChanged: (val) => progressProvider.toggleWorkout(name.hashCode, val ?? false),
+                                ),
 
                             ],
                           ),
@@ -430,21 +429,29 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
             Builder(
               builder: (context) {
                 int totalWorkouts = 0;
-                int totalDuration = 0;
+                int completedWorkouts = 0;
+                int completedDuration = 0;
+
                 if (workoutProvider.currentPlan?.weeklySchedule != null) {
-                  workoutProvider.currentPlan!.weeklySchedule!.forEach((day, workout) {
-                    if (workout.session != null && !workout.session!.toLowerCase().contains('rest')) {
+                  workoutProvider.currentPlan!.weeklySchedule!.values.forEach((workout) {
+                    final name = workout.session ?? 'Rest Day';
+                    final isRestDay = name.toLowerCase().contains('rest') || (workout.exercises == null || workout.exercises!.isEmpty);
+                    
+                    if (!isRestDay) {
                       totalWorkouts++;
-                      totalDuration += 45; // Default to 45 mins per workout
+                      final durationMins = (workout.exercises?.length ?? 0) * 5 + 10;
+                      
+                      if (progressProvider.isWorkoutCompleted(name.hashCode)) {
+                        completedWorkouts++;
+                        completedDuration += durationMins;
+                      }
                     }
                   });
                 }
-                if (totalWorkouts == 0) {
-                  totalWorkouts = 5;
-                  totalDuration = 5 * 45;
-                }
 
-                int completedWorkouts = progressProvider.completedWorkoutsCount;
+                if (totalWorkouts == 0) {
+                  totalWorkouts = 4;
+                }
 
                 return Container(
                   width: double.infinity,
@@ -465,7 +472,7 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
                             ),
                       ),
                       const SizedBox(height: 16),
-                      _buildStatsRow(context, 'Completed', '$completedWorkouts / $totalWorkouts', completedWorkouts / totalWorkouts, colorScheme.primary),
+                      _buildStatsRow(context, 'Completed', completedWorkouts.toDouble(), totalWorkouts.toDouble(), colorScheme.primary),
                       const SizedBox(height: 16),
                       Text(
                         'Total Duration',
@@ -474,7 +481,7 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
                             ),
                       ),
                       Text(
-                        '${(totalDuration / 60).toStringAsFixed(1)} hrs',
+                        '${(completedDuration / 60).toStringAsFixed(1)} hrs',
                         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: colorScheme.onSurface,
@@ -488,7 +495,7 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
                             ),
                       ),
                       Text(
-                        '${(totalDuration * 8)}', // 8 calories per minute average
+                        '${(completedDuration * 8)}', // 8 calories per minute average
                         style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                               fontWeight: FontWeight.bold,
                               color: colorScheme.primary,
@@ -537,49 +544,57 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
     );
   }
 
-  Widget _buildStatsRow(BuildContext context, String label, String value, double progress, Color accent) {
+  Widget _buildStatsRow(BuildContext context, String label, double current, double target, Color accent) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.0, end: current),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutCubic,
+      builder: (context, animValue, child) {
+        final currentProgress = target > 0 ? (animValue / target) : 0.0;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurface.withOpacity(0.65),
-                  ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurface.withOpacity(0.65),
+                      ),
+                ),
+                Text(
+                  '${animValue.toInt()} / ${target.toInt()}',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onSurface,
+                      ),
+                ),
+              ],
             ),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurface,
-                  ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          height: 8,
-          alignment: Alignment.centerLeft,
-          decoration: BoxDecoration(
-            color: colorScheme.outline.withOpacity(0.18),
-            borderRadius: BorderRadius.circular(99),
-          ),
-          child: FractionallySizedBox(
-            widthFactor: progress.clamp(0.0, 1.0),
-            child: Container(
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              height: 8,
+              alignment: Alignment.centerLeft,
               decoration: BoxDecoration(
-                color: accent,
+                color: colorScheme.outline.withOpacity(0.18),
                 borderRadius: BorderRadius.circular(99),
               ),
+              child: FractionallySizedBox(
+                widthFactor: currentProgress.clamp(0.0, 1.0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: accent,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
             ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 }

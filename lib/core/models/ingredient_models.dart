@@ -1,4 +1,3 @@
-import 'package:bonyaan_app/core/models/models.dart';
 
 class IngredientDto {
   final int? id;

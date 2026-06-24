@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/providers/providers.dart';
 import '../../../../core/models/models.dart';
-import '../../../../core/utils/ui_helpers.dart';
 
 class MealsTab extends StatefulWidget {
   const MealsTab({super.key});
@@ -62,7 +61,6 @@ class _MealsTabState extends State<MealsTab> {
     final dietProvider = context.watch<DietPlanProvider>();
     final progressProvider = context.watch<ProgressProvider>();
 
-    print('UI_DEBUG: Current dayPlan meals count is ${dietProvider.todayPlan?.meals?.length ?? -1}');
 
     if (dietProvider.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -114,7 +112,6 @@ class _MealsTabState extends State<MealsTab> {
     final targetCalories = selectedDayPlan?.targetCalories?.toInt() ?? 2200;
     final targetProtein = selectedDayPlan?.targetProtein?.toInt() ?? 150;
     final targetCarbs = selectedDayPlan?.targetCarbs?.toInt() ?? 275;
-    final targetFat = selectedDayPlan?.targetFat?.toInt() ?? 70;
 
     // Calculate current consumed macros based on checked meals (estimating per meal)
     double currentCalories = 0;
@@ -126,8 +123,15 @@ class _MealsTabState extends State<MealsTab> {
     final proteinPerMeal = (targetProtein / mealsCount).toDouble();
     final carbsPerMeal = (targetCarbs / mealsCount).toDouble();
 
+    int getUniqueMealId(DayPlan? dp, Meal meal) {
+      final day = dp?.dayOfWeek ?? 0;
+      final mId = meal.id ?? meal.name.hashCode;
+      return day * 100000 + (mId.abs() % 100000);
+    }
+
     for (final meal in meals) {
-      if (progressProvider.isMealCompleted(meal.id ?? meal.name.hashCode)) {
+      final uniqueId = getUniqueMealId(selectedDayPlan, meal);
+      if (progressProvider.isMealCompleted(uniqueId)) {
         currentCalories += caloriesPerMeal;
         currentProtein += proteinPerMeal;
         currentCarbs += carbsPerMeal;
@@ -152,11 +156,6 @@ class _MealsTabState extends State<MealsTab> {
       return Icons.restaurant;
     }
 
-    int getUniqueMealId(DayPlan? dp, Meal meal) {
-      final day = dp?.dayOfWeek ?? 0;
-      final mId = meal.id ?? meal.name.hashCode;
-      return day * 100000 + (mId.abs() % 100000);
-    }
 
     double getDayProgress(DayPlan dp) {
       if (dp.meals == null || dp.meals!.isEmpty) return 0.0;
@@ -263,8 +262,16 @@ class _MealsTabState extends State<MealsTab> {
                                   color: colorScheme.outline.withOpacity(0.24),
                                   borderRadius: BorderRadius.circular(99),
                                 ),
-                                child: FractionallySizedBox(
-                                  widthFactor: getDayProgress(weeklyDays[i]).clamp(0.0, 1.0),
+                                child: TweenAnimationBuilder<double>(
+                                  tween: Tween<double>(begin: 0.0, end: getDayProgress(weeklyDays[i]).clamp(0.0, 1.0)),
+                                  duration: const Duration(milliseconds: 400),
+                                  curve: Curves.easeOutCubic,
+                                  builder: (context, value, child) {
+                                    return FractionallySizedBox(
+                                      widthFactor: value,
+                                      child: child,
+                                    );
+                                  },
                                   child: Container(
                                     decoration: BoxDecoration(
                                       color: colorScheme.secondary,
@@ -344,6 +351,16 @@ class _MealsTabState extends State<MealsTab> {
             else
               Column(
                 children: meals.map((meal) {
+                  int fallbackPrepTime = 15;
+                  if (meal.ingredients != null && meal.ingredients!.isNotEmpty) {
+                    fallbackPrepTime = meal.ingredients!.length * 3 + 10;
+                  } else if (meal.preparationInstructions != null && meal.preparationInstructions!.isNotEmpty) {
+                    fallbackPrepTime = (meal.preparationInstructions!.length / 20).ceil() + 5;
+                  }
+                  final prepTime = (meal.preparationTime != null && meal.preparationTime! > 0)
+                      ? meal.preparationTime!
+                      : fallbackPrepTime;
+
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 14),
                     child: Container(
@@ -390,7 +407,7 @@ class _MealsTabState extends State<MealsTab> {
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
-                                  'Prep time: ${meal.preparationTime ?? 0} mins',
+                                  'Prep time: $prepTime mins',
                                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: colorScheme.onSurface.withOpacity(0.65),
                                   ),
@@ -452,11 +469,11 @@ class _MealsTabState extends State<MealsTab> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  _buildProgressRow(context, 'Calories', '${currentCalories.toInt()} / ${targetCalories.toInt()}', currentCalories / (targetCalories > 0 ? targetCalories : 1), colorScheme.secondary),
+                  _buildProgressRow(context, 'Calories', currentCalories, targetCalories.toDouble(), '', colorScheme.secondary),
                   const SizedBox(height: 14),
-                  _buildProgressRow(context, 'Protein', '${currentProtein.toInt()} / ${targetProtein.toInt()}g', currentProtein / (targetProtein > 0 ? targetProtein : 1), colorScheme.primary),
+                  _buildProgressRow(context, 'Protein', currentProtein, targetProtein.toDouble(), 'g', colorScheme.primary),
                   const SizedBox(height: 14),
-                  _buildProgressRow(context, 'Carbs', '${currentCarbs.toInt()} / ${targetCarbs.toInt()}g', currentCarbs / (targetCarbs > 0 ? targetCarbs : 1), colorScheme.tertiary),
+                  _buildProgressRow(context, 'Carbs', currentCarbs, targetCarbs.toDouble(), 'g', colorScheme.tertiary),
                 ],
               ),
             ),
@@ -468,80 +485,59 @@ class _MealsTabState extends State<MealsTab> {
     );
   }
 
-  Widget _buildMacroInfo(BuildContext context, String label, String value, String unit) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurface.withOpacity(0.65),
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              '$value $unit',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildProgressRow(BuildContext context, String label, String value, double progress, Color accent) {
+  Widget _buildProgressRow(BuildContext context, String label, double current, double target, String suffix, Color accent) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0.0, end: current),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutCubic,
+      builder: (context, animValue, child) {
+        final currentProgress = target > 0 ? (animValue / target) : 0.0;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurface.withOpacity(0.65),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurface.withOpacity(0.65),
+                  ),
+                ),
+                Text(
+                  '${animValue.toInt()} / ${target.toInt()}$suffix',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+              ],
             ),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              height: 8,
+              alignment: Alignment.centerLeft,
+              decoration: BoxDecoration(
+                color: colorScheme.outline.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(99),
+              ),
+              child: FractionallySizedBox(
+                widthFactor: currentProgress.clamp(0.0, 1.0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: accent,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          height: 8,
-          alignment: Alignment.centerLeft,
-          decoration: BoxDecoration(
-            color: colorScheme.outline.withOpacity(0.18),
-            borderRadius: BorderRadius.circular(99),
-          ),
-          child: FractionallySizedBox(
-            widthFactor: progress.clamp(0.0, 1.0),
-            child: Container(
-              decoration: BoxDecoration(
-                color: accent,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 }

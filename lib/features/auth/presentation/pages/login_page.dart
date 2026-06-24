@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../core/widgets/bonyaan_logo.dart';
 import '../providers/auth_provider.dart';
 import 'register_page.dart';
 
@@ -66,18 +67,14 @@ class _LoginPageState extends State<LoginPage> {
                     child: Form(
                       key: _formKey,
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            'Welcome to Bonyaan',
-                            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                          ),
-                          const SizedBox(height: 8),
+                          const BonyaanLogo.header(),
+                          const SizedBox(height: 20),
                           Text(
                             'Sign in to continue your health and fitness journey.',
+                            textAlign: TextAlign.center,
                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   color: colorScheme.onSurface.withValues(alpha: 0.72),
                                 ),

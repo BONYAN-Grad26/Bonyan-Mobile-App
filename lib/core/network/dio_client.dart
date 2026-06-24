@@ -10,7 +10,7 @@ class DioClient {
     BaseOptions(
       baseUrl: const String.fromEnvironment(
         'API_BASE_URL',
-        defaultValue: 'http://127.0.0.1:8080',
+        defaultValue: 'http://10.0.2.2:8080',
       ),
       connectTimeout: const Duration(seconds: 30),
       sendTimeout: const Duration(seconds: 90),

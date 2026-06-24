@@ -1,5 +1,4 @@
 // Authentication-related models
-import 'package:flutter/foundation.dart';
 
 /// Response after successful login/register with JWT token
 class AuthResponse {

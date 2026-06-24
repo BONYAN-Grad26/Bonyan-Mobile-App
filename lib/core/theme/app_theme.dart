@@ -4,6 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 class AppTheme {
   AppTheme._();
 
+  // Brand cyan color extracted from the Bonyaan logo
+  static const Color brandCyan = Color(0xFF00D4FF);
+
   static ThemeData get lightTheme {
     final baseTextTheme = GoogleFonts.interTextTheme();
 
@@ -12,7 +15,7 @@ class AppTheme {
       brightness: Brightness.light,
       scaffoldBackgroundColor: _AppColors.lightBackground,
       colorScheme: ColorScheme.light(
-        primary: _AppColors.brandGreenLight,
+        primary: _AppColors.brandCyanLight,
         onPrimary: Colors.white,
         secondary: _AppColors.secondaryBlue,
         onSecondary: Colors.white,
@@ -24,8 +27,8 @@ class AppTheme {
         onSurface: _AppColors.slate950,
         inverseSurface: _AppColors.slate100,
         onInverseSurface: _AppColors.slate950,
-        inversePrimary: _AppColors.brandGreenLight,
-        surfaceTint: _AppColors.brandGreenLight,
+        inversePrimary: _AppColors.brandCyanLight,
+        surfaceTint: _AppColors.brandCyanLight,
       ),
       textTheme: baseTextTheme.apply(
         bodyColor: _AppColors.slate950,
@@ -64,7 +67,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _AppColors.brandGreenLight, width: 1.5),
+          borderSide: const BorderSide(color: _AppColors.brandCyanLight, width: 1.5),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -83,7 +86,7 @@ class AppTheme {
       chipTheme: ChipThemeData(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         side: const BorderSide(color: _AppColors.slate300),
-        selectedColor: _AppColors.brandGreenLight.withValues(alpha: 0.15),
+        selectedColor: _AppColors.brandCyanLight.withValues(alpha: 0.15),
         backgroundColor: _AppColors.slate100,
         labelStyle: GoogleFonts.inter(
           fontWeight: FontWeight.w600,
@@ -101,8 +104,8 @@ class AppTheme {
       brightness: Brightness.dark,
       scaffoldBackgroundColor: _AppColors.darkBackground,
       colorScheme: ColorScheme.dark(
-        primary: _AppColors.brandGreenDark,
-        onPrimary: _AppColors.slate950, // Dark text on bright green buttons
+        primary: _AppColors.brandCyanDark,
+        onPrimary: _AppColors.slate950, // Dark text on bright cyan buttons
         secondary: _AppColors.secondaryBlueDark,
         onSecondary: _AppColors.slate950,
         tertiary: _AppColors.accentOrangeDark,
@@ -115,8 +118,8 @@ class AppTheme {
         shadow: Colors.black,
         inverseSurface: _AppColors.slate900,
         onInverseSurface: _AppColors.slate100,
-        inversePrimary: _AppColors.brandGreenDark,
-        surfaceTint: _AppColors.brandGreenDark,
+        inversePrimary: _AppColors.brandCyanDark,
+        surfaceTint: _AppColors.brandCyanDark,
       ),
       textTheme: baseTextTheme.apply(
         bodyColor: _AppColors.slate100,
@@ -155,7 +158,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _AppColors.secondaryBlueDark, width: 1.5),
+          borderSide: const BorderSide(color: _AppColors.brandCyanDark, width: 1.5),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -174,7 +177,7 @@ class AppTheme {
       chipTheme: ChipThemeData(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         side: const BorderSide(color: _AppColors.slate700),
-        selectedColor: _AppColors.brandGreenDark.withValues(alpha: 0.2),
+        selectedColor: _AppColors.brandCyanDark.withValues(alpha: 0.2),
         backgroundColor: _AppColors.slate900,
         labelStyle: GoogleFonts.inter(
           fontWeight: FontWeight.w600,
@@ -188,9 +191,9 @@ class AppTheme {
 class _AppColors {
   const _AppColors._();
 
-  // Primary Brand Colors
-  static const Color brandGreenLight = Color(0xFF00825B); // Exact Web Brand Green (Light Mode)
-  static const Color brandGreenDark = Color(0xFF3BC77A);  // Brightened Neon Green (Dark Mode)
+  // Primary Brand Colors — Cyan (matches Bonyaan logo)
+  static const Color brandCyanLight = Color(0xFF0099CC); // Deep cyan for light mode (readable on white)
+  static const Color brandCyanDark = Color(0xFF4DD9F0);  // Bright cyan for dark mode (pops on dark bg)
 
   // Secondary Colors
   static const Color secondaryBlue = Color(0xFF3C70FF);
@@ -218,6 +221,5 @@ class _AppColors {
   static const Color slate900 = Color(0xFF0F172A);
   static const Color slate950 = Color(0xFF020617);
 
-  static const Color border = Color(0xFFE5E7EB);
   static const Color borderDark = Color(0xFF334155);
 }
