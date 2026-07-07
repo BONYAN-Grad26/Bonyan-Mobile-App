@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/providers/providers.dart';
+import '../../../../core/models/models.dart';
 import '../../../../core/utils/ui_helpers.dart';
 import '../../../../core/widgets/bonyaan_logo.dart';
 import '../widgets/metric_card.dart';
@@ -26,20 +27,28 @@ class _HomeTabState extends State<HomeTab> {
     });
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData([bool isRefresh = false]) async {
     final profileProvider = context.read<ProfileProvider>();
     final dietProvider = context.read<DietPlanProvider>();
     final workoutProvider = context.read<WorkoutProvider>();
 
-    final futures = <Future<void>>[
-      profileProvider.fetchMyHealthProfile(),
-      dietProvider.fetchTodayPlan(),
-      workoutProvider.fetchCurrentWorkoutPlan(),
-    ];
+    final futures = <Future<void>>[];
     
-    await Future.wait(futures);
+    if (isRefresh || profileProvider.healthMetrics == null) {
+      futures.add(profileProvider.fetchMyHealthProfile());
+    }
+    if (isRefresh || dietProvider.todayPlan == null) {
+      futures.add(dietProvider.fetchTodayPlan());
+    }
+    if (isRefresh || workoutProvider.currentPlan == null) {
+      futures.add(workoutProvider.fetchCurrentWorkoutPlan());
+    }
+    
+    if (futures.isNotEmpty) {
+      await Future.wait(futures);
+    }
 
-    if (dietProvider.currentPlan == null || (dietProvider.currentPlan?.days?.isEmpty ?? true)) {
+    if (isRefresh || dietProvider.currentPlan == null || (dietProvider.currentPlan?.days?.isEmpty ?? true)) {
       await dietProvider.fetchWeeklyPlans();
     }
   }
@@ -74,7 +83,7 @@ class _HomeTabState extends State<HomeTab> {
             Text(error ?? 'An error occurred', textAlign: TextAlign.center),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _loadData,
+              onPressed: () => _loadData(true),
               child: const Text('Retry'),
             ),
           ],
@@ -89,18 +98,27 @@ class _HomeTabState extends State<HomeTab> {
 
     final metrics = profileProvider.healthMetrics;
     
+    final todayWeekday = DateTime.now().weekday;
+    DayPlan? activeTodayPlan = dietProvider.todayPlan;
+    if (dietProvider.currentPlan != null && (dietProvider.currentPlan!.days?.isNotEmpty ?? false)) {
+      final idx = dietProvider.currentPlan!.days!.indexWhere((dp) => dp.dayOfWeek == todayWeekday);
+      if (idx != -1) {
+        activeTodayPlan = dietProvider.currentPlan!.days![idx];
+      }
+    }
+
     // Goals from health profile and diet plan
-    final int caloriesGoal = dietProvider.todayPlan?.targetCalories?.toInt() ?? metrics?.dailyCalorieTarget ?? 2200;
-    final int proteinGoal = dietProvider.todayPlan?.targetProtein?.toInt() ?? (metrics?.weightKg != null ? (metrics!.weightKg! * 2).round() : 150);
+    final int caloriesGoal = activeTodayPlan?.targetCalories?.toInt() ?? metrics?.dailyCalorieTarget ?? 2200;
+    final int proteinGoal = activeTodayPlan?.targetProtein?.toInt() ?? (metrics?.weightKg != null ? (metrics!.weightKg! * 2).round() : 150);
     
     // Current progress
     int caloriesCurrent = 0;
     int proteinCurrent = 0;
 
-    if (dietProvider.todayPlan?.meals != null && dietProvider.todayPlan!.meals!.isNotEmpty) {
-      int mealCount = dietProvider.todayPlan!.meals!.length;
-      for (final meal in dietProvider.todayPlan!.meals!) {
-        final d = dietProvider.todayPlan!.dayOfWeek ?? 0;
+    if (activeTodayPlan?.meals != null && activeTodayPlan!.meals!.isNotEmpty) {
+      int mealCount = activeTodayPlan!.meals!.length;
+      for (final meal in activeTodayPlan!.meals!) {
+        final d = activeTodayPlan!.dayOfWeek ?? 0;
         final mId = meal.id ?? meal.name.hashCode;
         final uniqueId = d * 100000 + (mId.abs() % 100000);
         if (progressProvider.isMealCompleted(uniqueId)) {
@@ -111,7 +129,7 @@ class _HomeTabState extends State<HomeTab> {
     }
 
     return RefreshIndicator(
-      onRefresh: _loadData,
+      onRefresh: () => _loadData(true),
       child: CustomScrollView(
         slivers: [
           SliverSafeArea(
@@ -260,8 +278,8 @@ class _HomeTabState extends State<HomeTab> {
                   const SizedBox(height: 12),
                   _buildUpcomingCard(
                     context, 
-                    dietProvider.todayPlan?.meals?.firstOrNull?.name ?? 'No Meals Planned', 
-                    dietProvider.todayPlan != null ? 'Upcoming' : '', 
+                    activeTodayPlan?.meals?.firstOrNull?.name ?? 'No Meals Planned', 
+                    activeTodayPlan != null ? 'Upcoming' : '', 
                     colorScheme.secondary,
                     navigateIndex: 1,
                   ),

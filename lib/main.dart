@@ -27,7 +27,7 @@ Future<void> main() async {
   final authProvider = AuthProvider(tokenStorage: tokenStorage);
   
   final apiClient = ApiClient(
-    baseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'http://10.0.2.2:8080'),
+    baseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'https://phosphate-support-duration.ngrok-free.dev'),
     tokenStorage: tokenStorage,
     onUnauthorized: () {
       authProvider.logout();
@@ -55,7 +55,7 @@ class MyApp extends StatelessWidget {
           value: authProvider,
         ),
         ChangeNotifierProvider<OnboardingProvider>(
-          create: (_) => OnboardingProvider(metricsRepository: MetricsRepository()),
+          create: (_) => OnboardingProvider(metricsRepository: MetricsRepository(apiClient: apiClient)),
         ),
         ChangeNotifierProvider<DietPlanProvider>(
           create: (_) => DietPlanProvider(dietPlanRepository: DietPlanRepository(apiClient: apiClient)),
@@ -79,6 +79,15 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider<ProgressProvider>(
           create: (_) => ProgressProvider(prefs: prefs),
+        ),
+        ChangeNotifierProvider<ChatProvider>(
+          create: (_) => ChatProvider(),
+        ),
+        ChangeNotifierProvider<MealSuggesterProvider>(
+          create: (_) => MealSuggesterProvider(),
+        ),
+        ChangeNotifierProvider<MachineClassifierProvider>(
+          create: (_) => MachineClassifierProvider(),
         ),
       ],
       child: Consumer<SettingsProvider>(

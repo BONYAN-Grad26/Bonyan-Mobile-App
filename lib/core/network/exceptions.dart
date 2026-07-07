@@ -13,7 +13,7 @@ abstract class ApiException implements Exception {
   });
 
   @override
-  String toString() => 'ApiException: $message';
+  String toString() => message;
 }
 
 /// Thrown when authentication fails (401 Unauthorized)

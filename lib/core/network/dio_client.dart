@@ -10,14 +10,14 @@ class DioClient {
     BaseOptions(
       baseUrl: const String.fromEnvironment(
         'API_BASE_URL',
-        defaultValue: 'http://10.0.2.2:8080',
+        defaultValue: 'https://phosphate-support-duration.ngrok-free.dev',
       ),
       connectTimeout: const Duration(seconds: 30),
       sendTimeout: const Duration(seconds: 90),
       receiveTimeout: const Duration(seconds: 90),
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        'Accept': 'application/json'
       },
     ),
   );

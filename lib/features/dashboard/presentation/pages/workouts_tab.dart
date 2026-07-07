@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/models/models.dart';
 import '../../../../core/providers/providers.dart';
+import '../widgets/machine_classifier_sheet.dart';
 
 class WorkoutsTab extends StatefulWidget {
   const WorkoutsTab({super.key});
@@ -14,6 +15,14 @@ class WorkoutsTab extends StatefulWidget {
 class _WorkoutsTabState extends State<WorkoutsTab> {
   DateTime _selectedDate = DateTime.now();
   bool _isGenerating = false;
+  final ScrollController _scrollController = ScrollController();
+  bool _scrolledToToday = false;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -23,10 +32,12 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
     });
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData([bool isRefresh = false]) async {
     final workoutProvider = context.read<WorkoutProvider>();
-    // Force the fetch regardless of authProvider state
-    await workoutProvider.fetchCurrentWorkoutPlan(); 
+    if (isRefresh || workoutProvider.currentPlan == null) {
+      // Force the fetch regardless of authProvider state
+      await workoutProvider.fetchCurrentWorkoutPlan(); 
+    }
   }
 
   Future<void> _generatePlan() async {
@@ -59,6 +70,22 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
     final workoutProvider = context.watch<WorkoutProvider>();
     final progressProvider = context.watch<ProgressProvider>();
 
+    if (!_scrolledToToday) {
+      _scrolledToToday = true;
+      final int todayIdx = DateTime.now().weekday - 1; // Monday=0
+      if (todayIdx > 0) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              todayIdx * 102.0,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          }
+        });
+      }
+    }
+
     if (workoutProvider.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -73,7 +100,7 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
             Text(workoutProvider.errorMessage!, textAlign: TextAlign.center),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _loadData,
+              onPressed: () => _loadData(true),
               child: const Text('Retry'),
             ),
           ],
@@ -100,7 +127,9 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
     }
 
     return SafeArea(
-      child: SingleChildScrollView(
+      child: RefreshIndicator(
+        onRefresh: () => _loadData(true),
+        child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,6 +162,32 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
               ],
             ),
             const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => const MachineClassifierSheet(),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colorScheme.primaryContainer,
+                  foregroundColor: colorScheme.onPrimaryContainer,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
+                ),
+                icon: const Icon(Icons.document_scanner_outlined),
+                label: const Text(
+                  'Identify Gym Machine',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
             Text(
               'This Week’s Split',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -143,6 +198,7 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
             const SizedBox(height: 16),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
+              controller: _scrollController,
               child: Row(
                 children: [
                   for (var i = 0; i < 7; i++)
@@ -509,6 +565,7 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
             const SizedBox(height: 30),
           ],
         ),
+       ),
       ),
     );
   }

@@ -64,14 +64,18 @@ class DietPlanRepository {
       }
 
       final jsonMap = response as Map<String, dynamic>;
-      final data = jsonMap['data'] ?? jsonMap;
+      final data = jsonMap['data'];
 
       if (data is List) {
         return data
             .map((item) => WeeklyPlan.fromJson(item as Map<String, dynamic>))
             .toList();
       } else if (data is Map<String, dynamic>) {
-        return [WeeklyPlan.fromJson(data)];
+        final plan = WeeklyPlan.fromJson(data);
+        if (plan.id != null) return [plan];
+      } else if (data == null) {
+        final plan = WeeklyPlan.fromJson(jsonMap);
+        if (plan.id != null) return [plan];
       }
       
       return [];

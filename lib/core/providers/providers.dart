@@ -7,3 +7,6 @@ export 'allergy_provider.dart';
 export 'goal_provider.dart';
 export 'settings_provider.dart';
 export 'progress_provider.dart';
+export 'chat_provider.dart';
+export 'meal_suggester_provider.dart';
+export 'machine_classifier_provider.dart';

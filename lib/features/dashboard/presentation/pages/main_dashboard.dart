@@ -5,6 +5,7 @@ import '../pages/profile_page.dart';
 import '../pages/settings_page.dart';
 import '../pages/workouts_tab.dart';
 import '../tabs/home_tab.dart';
+import '../../../chatbot/presentation/widgets/chatbot_bottom_sheet.dart';
 
 class MainDashboard extends StatefulWidget {
   const MainDashboard({super.key});
@@ -82,6 +83,18 @@ class _MainDashboardState extends State<MainDashboard> {
           ),
         ],
       ),
+      floatingActionButton: _currentIndex <= 2 ? FloatingActionButton(
+        onPressed: () {
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (context) => const ChatbotBottomSheet(),
+          );
+        },
+        backgroundColor: colorScheme.primary,
+        child: Icon(Icons.chat_bubble_outline, color: colorScheme.onPrimary),
+      ) : null,
     );
   }
 }

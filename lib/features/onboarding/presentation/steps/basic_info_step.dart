@@ -6,7 +6,7 @@ import '../providers/onboarding_provider.dart';
 class BasicInfoStep extends StatelessWidget {
   const BasicInfoStep({super.key});
 
-  static const _genderOptions = ['MALE', 'FEMALE', 'OTHER'];
+  static const _genderOptions = ['MALE', 'FEMALE'];
 
   @override
   Widget build(BuildContext context) {

@@ -86,14 +86,18 @@ class WorkoutRepository {
       }
 
       final jsonMap = response as Map<String, dynamic>;
-      final data = jsonMap['data'] ?? jsonMap;
+      final data = jsonMap['data'];
 
       if (data is List) {
         return data
             .map((item) => WorkoutPlan.fromJson(item as Map<String, dynamic>))
             .toList();
       } else if (data is Map<String, dynamic>) {
-        return [WorkoutPlan.fromJson(data)];
+        final plan = WorkoutPlan.fromJson(data);
+        if (plan.planName != null) return [plan];
+      } else if (data == null) {
+        final plan = WorkoutPlan.fromJson(jsonMap);
+        if (plan.planName != null) return [plan];
       }
 
       return [];

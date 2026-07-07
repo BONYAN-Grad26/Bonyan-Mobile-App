@@ -30,7 +30,7 @@ class ApiClient {
     required this.baseUrl,
     required this.tokenStorage,
     http.Client? httpClient,
-    this.timeout = const Duration(seconds: 90),
+    this.timeout = const Duration(seconds: 300),
     this.onUnauthorized,
   }) : httpClient = httpClient ?? http.Client();
 
@@ -64,6 +64,24 @@ class ApiClient {
     return headers;
   }
 
+  String _extractErrorMessage(String body, String defaultMessage) {
+    if (body.isEmpty) return defaultMessage;
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        final msg = decoded['message']?.toString();
+        if (msg != null && msg.isNotEmpty) {
+          // If the message is a massive stack trace or java exception, fallback to generic
+          if (msg.contains('Exception') || msg.length > 150) {
+            return defaultMessage;
+          }
+          return msg;
+        }
+      }
+    } catch (_) {}
+    return defaultMessage;
+  }
+
   /// Handles HTTP response and throws appropriate exceptions
   dynamic _handleResponse(http.Response response) {
     try {
@@ -72,6 +90,9 @@ class ApiClient {
       print('--- ApiClient Response ---');
       print('URL: ${response.request?.url}');
       print('Status Code: $statusCode');
+      if (response.body.isNotEmpty) {
+        print('Body: ${response.body}');
+      }
       print('--------------------------');
 
       // Success response
@@ -84,13 +105,15 @@ class ApiClient {
       if (statusCode == 401) {
         tokenStorage.clearAccessToken();
         onUnauthorized?.call();
-        throw UnauthorizedException();
+        throw UnauthorizedException(
+          message: _extractErrorMessage(response.body, 'Invalid email or password.'),
+        );
       }
 
       // Not found
       if (statusCode == 404) {
         throw NotFoundException(
-          message: 'Resource not found.',
+          message: _extractErrorMessage(response.body, 'Resource not found.'),
           originalError: response.body,
         );
       }
@@ -102,8 +125,9 @@ class ApiClient {
           errorData = jsonDecode(response.body) as Map<String, dynamic>;
         } catch (_) {}
 
+        final msg = _extractErrorMessage(response.body, 'Validation failed.');
         throw ValidationException(
-          message: errorData['message'] as String? ?? 'Validation failed.',
+          message: msg,
           errors: errorData['errors'] as Map<String, dynamic>?,
           originalError: response.body,
         );
@@ -112,7 +136,7 @@ class ApiClient {
       // Server error
       if (statusCode >= 500) {
         throw ServerException(
-          message: 'Server error occurred.',
+          message: _extractErrorMessage(response.body, 'Server error occurred.'),
           statusCode: statusCode.toString(),
           originalError: response.body,
         );
@@ -120,7 +144,7 @@ class ApiClient {
 
       // Other errors
       throw ApiErrorException(
-        message: 'Unexpected error occurred.',
+        message: _extractErrorMessage(response.body, 'Unexpected error occurred.'),
         statusCode: statusCode.toString(),
         originalError: response.body,
       );
@@ -144,6 +168,11 @@ class ApiClient {
     try {
       final url = Uri.parse(_buildUrl(endpoint)).replace(queryParameters: queryParameters);
       final headers = await _getHeaders(additionalHeaders: additionalHeaders);
+
+      print('--- ApiClient Request ---');
+      print('Method: GET');
+      print('URL: $url');
+      print('-------------------------');
 
       final response = await httpClient
           .get(url, headers: headers)
@@ -187,6 +216,14 @@ class ApiClient {
         }
       }
 
+      print('--- ApiClient Request ---');
+      print('Method: POST');
+      print('URL: $url');
+      if (bodyString != null) {
+        print('Body: $bodyString');
+      }
+      print('-------------------------');
+
       final response = await httpClient
           .post(url, headers: headers, body: bodyString)
           .timeout(timeout, onTimeout: () => throw TimeoutException('Request timeout'));
@@ -229,6 +266,14 @@ class ApiClient {
         }
       }
 
+      print('--- ApiClient Request ---');
+      print('Method: PUT');
+      print('URL: $url');
+      if (bodyString != null) {
+        print('Body: $bodyString');
+      }
+      print('-------------------------');
+
       final response = await httpClient
           .put(url, headers: headers, body: bodyString)
           .timeout(timeout, onTimeout: () => throw TimeoutException('Request timeout'));
@@ -259,6 +304,11 @@ class ApiClient {
     try {
       final url = Uri.parse(_buildUrl(endpoint)).replace(queryParameters: queryParameters);
       final headers = await _getHeaders(additionalHeaders: additionalHeaders);
+
+      print('--- ApiClient Request ---');
+      print('Method: DELETE');
+      print('URL: $url');
+      print('-------------------------');
 
       final response = await httpClient
           .delete(url, headers: headers)

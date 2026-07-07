@@ -1,35 +1,34 @@
-import 'package:dio/dio.dart';
-
-import '../../../../core/network/dio_client.dart';
+import '../../../../core/network/api_client.dart';
+import '../../../../core/network/exceptions.dart';
 import '../models/health_metric_model.dart';
 
 class MetricsRepository {
-  MetricsRepository({Dio? dio}) : _dio = dio ?? DioClient.instance;
+  final ApiClient apiClient;
 
-  final Dio _dio;
+  MetricsRepository({required this.apiClient});
 
   Future<HealthMetricModel> addHealthProfile(HealthMetricModel model) async {
-    final response = await _dio.post<Map<String, dynamic>>(
+    final response = await apiClient.post(
       '/api/health-profile',
-      data: model.toJson(),
+      body: model.toJson(),
     );
 
-    final data = response.data;
-    if (data == null) {
+    if (response == null) {
       return model;
     }
 
-    return HealthMetricModel.fromJson(data);
+    return HealthMetricModel.fromJson(response as Map<String, dynamic>);
   }
 
   Future<HealthMetricModel?> getMyHealthProfile() async {
-    final response = await _dio.get<Map<String, dynamic>>('/api/health-profile/me');
-    final data = response.data;
-
-    if (data == null) {
+    try {
+      final response = await apiClient.get('/api/health-profile/me');
+      if (response == null) {
+        return null;
+      }
+      return HealthMetricModel.fromJson(response as Map<String, dynamic>);
+    } on NotFoundException {
       return null;
     }
-
-    return HealthMetricModel.fromJson(data);
   }
 }

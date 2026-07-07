@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/providers/providers.dart';
 import '../../../../core/models/models.dart';
+import '../../../../core/widgets/bonyaan_logo.dart';
+import '../widgets/meal_suggester_sheet.dart';
 
 class MealsTab extends StatefulWidget {
   const MealsTab({super.key});
@@ -14,6 +16,13 @@ class MealsTab extends StatefulWidget {
 class _MealsTabState extends State<MealsTab> {
   bool _isGenerating = false;
   int _selectedIndex = -1; // -1 means auto-select today on first load
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   Future<void> _generatePlan() async {
     setState(() => _isGenerating = true);
@@ -50,9 +59,11 @@ class _MealsTabState extends State<MealsTab> {
     });
   }
 
-  Future<void> _loadData() async {
+  Future<void> _loadData([bool isRefresh = false]) async {
     final dietProvider = context.read<DietPlanProvider>();
-    await dietProvider.fetchWeeklyPlans();
+    if (isRefresh || dietProvider.currentPlan == null || (dietProvider.currentPlan?.days?.isEmpty ?? true)) {
+      await dietProvider.fetchWeeklyPlans();
+    }
   }
 
   @override
@@ -76,7 +87,7 @@ class _MealsTabState extends State<MealsTab> {
             Text(dietProvider.errorMessage!, textAlign: TextAlign.center),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _loadData,
+              onPressed: () => _loadData(true),
               child: const Text('Retry'),
             ),
           ],
@@ -97,6 +108,18 @@ class _MealsTabState extends State<MealsTab> {
       // Find today's index by dayOfWeek
       int todayIdx = weeklyDays.indexWhere((dp) => dp.dayOfWeek == todayWeekday);
       _selectedIndex = todayIdx != -1 ? todayIdx : 0;
+      
+      if (_selectedIndex > 0) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              _selectedIndex * 102.0,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          }
+        });
+      }
     }
 
     DayPlan? selectedDayPlan;
@@ -170,7 +193,9 @@ class _MealsTabState extends State<MealsTab> {
     }
 
     return SafeArea(
-      child: SingleChildScrollView(
+      child: RefreshIndicator(
+        onRefresh: () => _loadData(true),
+        child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -213,6 +238,7 @@ class _MealsTabState extends State<MealsTab> {
             const SizedBox(height: 16),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
+              controller: _scrollController,
               child: Row(
                 children: [
                   for (int i = 0; i < weeklyDays.length; i++)
@@ -289,6 +315,33 @@ class _MealsTabState extends State<MealsTab> {
               ),
             ),
             const SizedBox(height: 24),
+            // Smart Ingredients Scanner Button
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 24),
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (context) => const MealSuggesterSheet(),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: colorScheme.primaryContainer,
+                  foregroundColor: colorScheme.onPrimaryContainer,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
+                ),
+                icon: const Icon(Icons.document_scanner_outlined),
+                label: const Text(
+                  'Scan Ingredients for a Meal Idea',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
             Text(
               'Today’s Meals',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -482,8 +535,9 @@ class _MealsTabState extends State<MealsTab> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
 
   Widget _buildProgressRow(BuildContext context, String label, double current, double target, String suffix, Color accent) {

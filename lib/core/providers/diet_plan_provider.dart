@@ -107,9 +107,11 @@ class DietPlanProvider extends ChangeNotifier {
 
     try {
       _weeklyPlans = await _dietPlanRepository.getWeeklyPlans();
-      if (_weeklyPlans.isNotEmpty) {
+      if (_weeklyPlans.isNotEmpty && _weeklyPlans.first.id != null) {
         // Fetch the full plan by ID to get the populated 'days' list
         _currentPlan = await _dietPlanRepository.getPlanById(_weeklyPlans.first.id!);
+      } else {
+        _currentPlan = null;
       }
       _isLoading = false;
       notifyListeners();
