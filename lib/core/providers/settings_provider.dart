@@ -9,7 +9,7 @@ class SettingsProvider extends ChangeNotifier {
   static const String _progressUpdatesKey = 'progress_updates';
   static const String _languageKey = 'language';
   
-  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode _themeMode = ThemeMode.dark;
   String _measurementUnit = 'Metric (kg, cm)';
   bool _mealReminders = true;
   bool _workoutAlerts = true;
@@ -31,7 +31,7 @@ class SettingsProvider extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     
     // Load theme
-    final themeIndex = prefs.getInt(_themeKey) ?? ThemeMode.system.index;
+    final themeIndex = prefs.getInt(_themeKey) ?? ThemeMode.dark.index;
     _themeMode = ThemeMode.values[themeIndex];
     
     // Load units

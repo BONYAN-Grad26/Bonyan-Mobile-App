@@ -23,9 +23,9 @@ class Exercise {
 
     return Exercise(
       name: (json['name'] ?? json['exerciseName'])?.toString(),
-      sets: (json['sets'] ?? json['setCount']) != null ? int.tryParse((json['sets'] ?? json['setCount']).toString()) : null,
+      sets: _toInt(json['sets'] ?? json['setCount']),
       reps: (json['reps'] ?? json['repCount'])?.toString(),
-      restSeconds: (json['rest_seconds'] ?? json['restSeconds']) != null ? int.tryParse((json['rest_seconds'] ?? json['restSeconds']).toString()) : null,
+      restSeconds: _toInt(json['rest_seconds'] ?? json['restSeconds']),
       notes: json['notes']?.toString(),
     );
   }
@@ -59,12 +59,10 @@ class WorkoutDay {
   });
 
   factory WorkoutDay.fromJson(Map<String, dynamic> jsonMap) {
-    final json = jsonMap.containsKey('data') && jsonMap['data'] is Map<String, dynamic>
-        ? jsonMap['data'] as Map<String, dynamic>
-        : jsonMap;
+    final json = jsonMap.containsKey('data') && jsonMap['data'] is Map ? Map<String, dynamic>.from(jsonMap['data'] as Map) : jsonMap;
 
     return WorkoutDay(
-      dayName: json['day_name']?.toString() ?? json['dayName']?.toString(),
+      dayName: (json['day_name'] ?? json['dayName'])?.toString(),
       session: json['session']?.toString(),
       focus: json['focus']?.toString(),
       // BUG FIX: Loosened the List check and safely cast the Maps
@@ -102,18 +100,14 @@ class WorkoutPlan {
   });
 
   factory WorkoutPlan.fromJson(Map<String, dynamic> jsonMap) {
-    final json = jsonMap.containsKey('data') && jsonMap['data'] is Map<String, dynamic>
-        ? jsonMap['data'] as Map<String, dynamic>
-        : jsonMap;
+    final json = jsonMap.containsKey('data') && jsonMap['data'] is Map ? Map<String, dynamic>.from(jsonMap['data'] as Map) : jsonMap;
 
     List<WorkoutDay> parsedDays = [];
     final scheduleMap = json['weekly_schedule'] ?? json['weeklySchedule'];
 
     if (scheduleMap != null && scheduleMap is Map) {
       scheduleMap.forEach((dayName, dayData) {
-        // BUG FIX: Removed the strict <String, dynamic> check here!
         if (dayData != null && dayData is Map) {
-          // This safely forces the dynamic map into the exact type we need
           final Map<String, dynamic> mutableDayData = Map<String, dynamic>.from(dayData);
           mutableDayData['day_name'] = dayName.toString();
           parsedDays.add(WorkoutDay.fromJson(mutableDayData));
@@ -163,17 +157,16 @@ class TodayWorkout {
   });
 
   factory TodayWorkout.fromJson(Map<String, dynamic> jsonMap) {
-    final json = jsonMap.containsKey('data') && jsonMap['data'] is Map<String, dynamic>
-        ? jsonMap['data'] as Map<String, dynamic>
-        : jsonMap;
+    final json = jsonMap.containsKey('data') && jsonMap['data'] is Map ? Map<String, dynamic>.from(jsonMap['data'] as Map) : jsonMap;
 
     return TodayWorkout(
-      session: json['session'] as String?,
-      focus: json['focus'] as String?,
+      session: json['session']?.toString(),
+      focus: json['focus']?.toString(),
       exercises: (json['exercises'] as List?)
-          ?.map((item) => Exercise.fromJson(item as Map<String, dynamic>))
+          ?.where((e) => e != null)
+          .map((item) => Exercise.fromJson(Map<String, dynamic>.from(item as Map)))
           .toList(),
-      date: json['date'] != null ? DateTime.tryParse(json['date'] as String) : null,
+      date: json['date'] != null ? DateTime.tryParse(json['date'].toString()) : null,
     );
   }
 
@@ -188,4 +181,20 @@ class TodayWorkout {
 
   @override
   String toString() => 'TodayWorkout(session: $session, exercises: ${exercises?.length})';
+}
+
+int? _toInt(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value);
+  return null;
+}
+
+double? _toDouble(dynamic value) {
+  if (value == null) return null;
+  if (value is double) return value;
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value);
+  return null;
 }

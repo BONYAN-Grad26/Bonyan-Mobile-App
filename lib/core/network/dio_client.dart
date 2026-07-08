@@ -10,14 +10,17 @@ class DioClient {
     BaseOptions(
       baseUrl: const String.fromEnvironment(
         'API_BASE_URL',
-        defaultValue: 'https://20703738d10865.lhr.life/',
+        defaultValue: 'https://18ed0c9d2ec32e.lhr.life',
       ),
       connectTimeout: const Duration(seconds: 30),
       sendTimeout: const Duration(seconds: 90),
       receiveTimeout: const Duration(seconds: 90),
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        'Accept': 'application/json',
+        'User-Agent': 'BonyaanApp/1.0',
+        'Bypass-Tunnel-Reminder': 'true',
+        'X-Tunnel-Skip-GUI': 'true',
       },
     ),
   );

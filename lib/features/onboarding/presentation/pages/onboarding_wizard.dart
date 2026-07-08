@@ -51,7 +51,7 @@ class _OnboardingWizardState extends State<OnboardingWizard> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(provider.errorMessage ?? 'Failed to generate health profile.'),
+            content: Text(provider.errorMessage ?? 'Failed to generate profile'),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );

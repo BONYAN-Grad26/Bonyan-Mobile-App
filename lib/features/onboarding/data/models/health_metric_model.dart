@@ -55,6 +55,7 @@ class HealthMetricModel {
       'gender': gender,
       'activityLevel': activityLevel,
       'dietGoal': dietGoal,
+      'unit': unit, // <-- FIXED: Added unit to the JSON map so it saves correctly
       'fatPercentage': fatPercentage,
       'muscleMassKg': muscleMassKg,
       'medicalNotes': medicalNotes,

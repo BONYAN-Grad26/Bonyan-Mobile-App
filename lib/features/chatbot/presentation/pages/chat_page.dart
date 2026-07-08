@@ -4,14 +4,16 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/providers/providers.dart';
 
-class ChatbotBottomSheet extends StatefulWidget {
-  const ChatbotBottomSheet({super.key});
+class ChatPage extends StatefulWidget {
+  final VoidCallback? onBack;
+
+  const ChatPage({super.key, this.onBack});
 
   @override
-  State<ChatbotBottomSheet> createState() => _ChatbotBottomSheetState();
+  State<ChatPage> createState() => _ChatPageState();
 }
 
-class _ChatbotBottomSheetState extends State<ChatbotBottomSheet> {
+class _ChatPageState extends State<ChatPage> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -118,61 +120,38 @@ class _ChatbotBottomSheetState extends State<ChatbotBottomSheet> {
     // Scroll to bottom when new messages arrive
     _scrollToBottom();
 
-    return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
-      ),
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: Column(
-        children: [
-          // Handle / Header
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: colorScheme.outline.withValues(alpha: 0.1))),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: colorScheme.outline.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(left: 16.0),
-                      child: Text(
-                        'AI Assistant',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline),
-                      onPressed: () {
-                        context.read<ChatProvider>().clearSession();
-                      },
-                      tooltip: 'Clear Chat',
-                    ),
-                  ],
-                ),
-              ],
-            ),
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        elevation: 0,
+        titleSpacing: 0, // Decreases whitespace between the leading button and the title
+        leading: widget.onBack != null 
+          ? IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded),
+              onPressed: widget.onBack,
+              color: colorScheme.onSurface,
+            )
+          : null,
+        title: Text(
+          'AI Assistant',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
           ),
-          
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () {
+              context.read<ChatProvider>().clearSession();
+            },
+            tooltip: 'Clear Chat',
+            color: colorScheme.onSurface,
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
           // Chat Messages
           Expanded(
             child: messages.isEmpty
@@ -184,7 +163,7 @@ class _ChatbotBottomSheetState extends State<ChatbotBottomSheet> {
                         const SizedBox(height: 16),
                         Text(
                           'How can I help you today?',
-                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
                         ),
@@ -254,36 +233,66 @@ class _ChatbotBottomSheetState extends State<ChatbotBottomSheet> {
               color: Theme.of(context).scaffoldBackgroundColor,
               border: Border(top: BorderSide(color: colorScheme.outline.withValues(alpha: 0.1))),
             ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _sendMessage(),
-                    decoration: InputDecoration(
-                      hintText: 'Message AI Assistant...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      textInputAction: TextInputAction.send,
+                      textAlign: TextAlign.left,
+                      style: TextStyle(
+                        color: colorScheme.onSurface.withValues(alpha: 0.7),
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
                       ),
-                      filled: true,
-                      fillColor: colorScheme.surfaceContainerHighest,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      onSubmitted: (_) => _sendMessage(),
+                      decoration: InputDecoration(
+                        hintText: 'Message AI Assistant...',
+                        hintStyle: TextStyle(
+                          color: colorScheme.onSurface.withValues(alpha: 0.5),
+                          fontSize: 12,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(100),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: colorScheme.surfaceContainerHighest,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                CircleAvatar(
-                  backgroundColor: colorScheme.primary,
-                  child: IconButton(
-                    icon: Icon(Icons.send, color: colorScheme.onPrimary, size: 20),
-                    onPressed: _sendMessage,
+                  const SizedBox(width: 16),
+                  AspectRatio(
+                    aspectRatio: 1,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: colorScheme.primary.withValues(alpha: 0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        icon: Icon(Icons.send, color: colorScheme.onPrimary, size: 24),
+                        onPressed: _sendMessage,
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
+          // Space for bottom navigation bar when not hidden, though user said remove nav bar
+          SizedBox(height: MediaQuery.of(context).padding.bottom > 0 ? 0 : 8),
         ],
       ),
     );

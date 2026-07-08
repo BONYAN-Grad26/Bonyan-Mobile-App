@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../utils/secure_storage_service.dart';
 
@@ -174,20 +175,29 @@ class AuthInterceptor extends QueuedInterceptor {
   Future<void> _persistTokensFromResponse(Response<dynamic> response) async {
     final responseBody = response.data;
 
-    // 1. Check if the response is a JSON Map
     if (responseBody is Map<String, dynamic>) {
+      var accessToken = responseBody['accessToken'];
 
-      // 2. Open the Spring Boot envelope to get the inner 'data' object
-      final nestedData = responseBody['data'];
-
-      // 3. Extract the accessToken from inside the envelope
-      if (nestedData is Map<String, dynamic>) {
-        final accessToken = nestedData['accessToken'];
-
-        if (accessToken is String && accessToken.isNotEmpty) {
-          await _secureStorage.saveAccessToken(accessToken);
-          print("ACCESS TOKEN SAVED SUCCESSFULLY!"); // Added a print to confirm!
+      if (accessToken == null) {
+        final nestedData = responseBody['data'];
+        if (nestedData is Map<String, dynamic>) {
+          accessToken = nestedData['accessToken'];
         }
+      }
+
+      if (accessToken is String && accessToken.isNotEmpty) {
+        try {
+          await _secureStorage.saveAccessToken(accessToken);
+        } catch (e) {
+          print("Failed to save to secure storage: $e");
+        }
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('jwt_access_token', accessToken);
+        } catch (e) {
+          print("Failed to save to shared preferences: $e");
+        }
+        print("ACCESS TOKEN SAVED SUCCESSFULLY!");
       }
     }
 

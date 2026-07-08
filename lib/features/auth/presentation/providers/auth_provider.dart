@@ -42,7 +42,14 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final accessToken = await _secureStorage.readAccessToken();
+      String? accessToken = await _secureStorage.readAccessToken().timeout(
+        const Duration(milliseconds: 800),
+        onTimeout: () => null,
+      );
+
+      if (accessToken == null || accessToken.isEmpty) {
+        accessToken = await _tokenStorage.getAccessToken();
+      }
 
       if (accessToken != null && accessToken.isNotEmpty) {
         await _tokenStorage.saveAccessToken(accessToken);
@@ -61,11 +68,33 @@ class AuthProvider extends ChangeNotifier {
     _status = AuthStatus.loading;
     _errorMessage = null;
     notifyListeners();
-
+    // --- START OF MOCK LOGIN BYPASS ---
+    if (email == "test@test.com" && password == "password123") {
+      await Future.delayed(const Duration(seconds: 1)); // Simulate network delay
+      _currentUser = const UserModel(
+        id: 1,
+        email: "test@test.com",
+        firstName: "Test",
+        lastName: "User",
+      );
+      await _tokenStorage.saveAccessToken("mock_token");
+      await _secureStorage.saveAccessToken("mock_token");
+      _status = AuthStatus.authenticated;
+      notifyListeners();
+      return true;
+    }
     try {
       _currentUser = await _authRepository.login(email: email, password: password);
 
-      final accessToken = await _secureStorage.readAccessToken();
+      String? accessToken = await _secureStorage.readAccessToken().timeout(
+        const Duration(milliseconds: 800),
+        onTimeout: () => null,
+      );
+
+      if (accessToken == null || accessToken.isEmpty) {
+        accessToken = await _tokenStorage.getAccessToken();
+      }
+
       if (accessToken != null && accessToken.isNotEmpty) {
         await _tokenStorage.saveAccessToken(accessToken);
         _status = AuthStatus.authenticated;

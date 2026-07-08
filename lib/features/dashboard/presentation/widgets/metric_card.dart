@@ -20,6 +20,7 @@ class MetricCard extends StatelessWidget {
     required this.variant,
     required this.progress,
     this.trend,
+    this.customColor,
   });
 
   final String title;
@@ -29,41 +30,43 @@ class MetricCard extends StatelessWidget {
   final MetricVariant variant;
   final double progress;
   final MetricTrend? trend;
+  final Color? customColor;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    Color accentColor;
-    switch (variant) {
-      case MetricVariant.nutrition:
-        accentColor = colorScheme.primary;
-        break;
-      case MetricVariant.health:
-        accentColor = colorScheme.secondary;
-        break;
-      case MetricVariant.workout:
-        accentColor = colorScheme.tertiary;
-        break;
-      default:
-        accentColor = colorScheme.primary;
+    Color accentColor = customColor ?? colorScheme.primary;
+    if (customColor == null) {
+      switch (variant) {
+        case MetricVariant.nutrition:
+          accentColor = colorScheme.primary;
+          break;
+        case MetricVariant.health:
+          accentColor = colorScheme.secondary;
+          break;
+        case MetricVariant.workout:
+          accentColor = colorScheme.tertiary;
+          break;
+        default:
+          accentColor = colorScheme.primary;
+      }
     }
 
-    final bool hasTrend = trend != null;
-    final bool isUp = hasTrend && trend?.direction == TrendDirection.up;
-    final bool isDown = hasTrend && trend?.direction == TrendDirection.down;
-    final int trendValue = hasTrend ? (trend?.value.toInt() ?? 0) : 0;
-
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
+        color: accentColor, // Solid color
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark 
+              ? const Color(0xFF268FB1) 
+              : Colors.black, 
+          width: 1
+        ), // 1px stroke (Blue 0xFF268FB1 in dark mode, black in light mode)
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -71,79 +74,75 @@ class MetricCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.15),
+                  color: Colors.white.withOpacity(0.25),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: accentColor, size: 20),
+                child: Icon(icon, color: Colors.white, size: 22),
               ),
-              if (hasTrend)
-                Row(
-                  children: [
-                    Icon(
-                      isUp ? Icons.arrow_upward : isDown ? Icons.arrow_downward : Icons.horizontal_rule,
-                      size: 14,
-                      color: colorScheme.onSurface.withOpacity(0.6),
-                    ),
-                    const SizedBox(width: 2),
-                    Text(
-                      '$trendValue%',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: colorScheme.onSurface.withOpacity(0.6),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+              if (trend != null)
+                Icon(
+                  trend!.direction == TrendDirection.up ? Icons.trending_up : Icons.trending_down,
+                  color: Colors.white,
+                  size: 20,
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          const Spacer(),
           Text(
             title,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurface.withOpacity(0.75),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 4),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
             children: [
               Text(
                 value,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurface,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
               const SizedBox(width: 4),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 3.0),
-                child: Text(
-                  unit,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurface.withOpacity(0.6),
-                  ),
+              Text(
+                unit,
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Container(
-            width: double.infinity,
-            height: 6,
-            decoration: BoxDecoration(
-              color: colorScheme.outline.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(99),
-            ),
-            alignment: Alignment.centerLeft,
-            child: FractionallySizedBox(
-              widthFactor: (progress / 100).clamp(0.0, 1.0),
-              child: Container(
+          // Unique horizontal mini-progress bar
+          Stack(
+            children: [
+              Container(
+                height: 8,
+                width: double.infinity,
                 decoration: BoxDecoration(
-                  color: accentColor,
-                  borderRadius: BorderRadius.circular(99),
+                  color: Colors.black.withOpacity(0.25),
+                  borderRadius: BorderRadius.circular(10),
                 ),
               ),
-            ),
+              FractionallySizedBox(
+                widthFactor: (progress / 100).clamp(0.0, 1.0),
+                child: Container(
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

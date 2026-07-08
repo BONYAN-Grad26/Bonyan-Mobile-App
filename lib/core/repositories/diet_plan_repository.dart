@@ -1,5 +1,5 @@
-/// Diet Plan Repository
-/// Handles weekly/daily diet plan CRUD operations and AI generation
+// Diet Plan Repository
+// Handles weekly/daily diet plan CRUD operations and AI generation
 import 'package:bonyaan_app/core/models/models.dart';
 import 'package:bonyaan_app/core/network/api_client.dart';
 import 'package:bonyaan_app/core/network/exceptions.dart';
@@ -63,19 +63,28 @@ class DietPlanRepository {
         );
       }
 
-      final jsonMap = response as Map<String, dynamic>;
-      final data = jsonMap['data'];
-
-      if (data is List) {
-        return data
-            .map((item) => WeeklyPlan.fromJson(item as Map<String, dynamic>))
+      // Robustly handle both List and Map (with or without 'data' wrapper)
+      if (response is List) {
+        return response
+            .map((item) => WeeklyPlan.fromJson(Map<String, dynamic>.from(item as Map)))
             .toList();
-      } else if (data is Map<String, dynamic>) {
-        final plan = WeeklyPlan.fromJson(data);
-        if (plan.id != null) return [plan];
-      } else if (data == null) {
-        final plan = WeeklyPlan.fromJson(jsonMap);
-        if (plan.id != null) return [plan];
+      }
+
+      if (response is Map<String, dynamic>) {
+        final data = response['data'];
+
+        if (data is List) {
+          return data
+              .map((item) => WeeklyPlan.fromJson(Map<String, dynamic>.from(item as Map)))
+              .toList();
+        } else if (data is Map<String, dynamic>) {
+          final plan = WeeklyPlan.fromJson(data);
+          if (plan.id != null) return [plan];
+        } else if (data == null) {
+          // No 'data' key, treat the whole response as the plan object
+          final plan = WeeklyPlan.fromJson(response);
+          if (plan.id != null) return [plan];
+        }
       }
       
       return [];
@@ -104,7 +113,15 @@ class DietPlanRepository {
           statusCode: '500',
         );
       }
-      return DayPlan.fromJson(response as Map<String, dynamic>);
+      
+      if (response is Map<String, dynamic>) {
+        return DayPlan.fromJson(response);
+      } else if (response is List) {
+        if (response.isEmpty) throw NotFoundException(message: 'No diet plan for today.');
+        return DayPlan.fromJson(Map<String, dynamic>.from(response.first as Map));
+      }
+
+      throw ParseException(message: 'Unexpected response format for today plan');
     } on ApiException {
       rethrow;
     } catch (e) {

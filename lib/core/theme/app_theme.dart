@@ -4,93 +4,93 @@ import 'package:google_fonts/google_fonts.dart';
 class AppTheme {
   AppTheme._();
 
-  // Brand cyan color extracted from the Bonyaan logo
-  static const Color brandCyan = Color(0xFF00D4FF);
-
   static ThemeData get lightTheme {
     final baseTextTheme = GoogleFonts.interTextTheme();
 
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      scaffoldBackgroundColor: _AppColors.lightBackground,
-      colorScheme: ColorScheme.light(
-        primary: _AppColors.brandCyanLight,
+      scaffoldBackgroundColor: _AppColors.backgroundMint,
+      colorScheme: const ColorScheme.light(
+        primary: Color(0xFF32B8E8), // Vibrant Cyan
         onPrimary: Colors.white,
-        secondary: _AppColors.secondaryBlue,
+        secondary: Color(0xFF7CD070), // Vibrant Green
         onSecondary: Colors.white,
-        tertiary: _AppColors.accentOrangeLight,
+        tertiary: Color(0xFF6366F1), // Vibrant Indigo
         onTertiary: Colors.white,
+        surface: Colors.white, // Cards and surfaces should be white to pop
+        onSurface: _AppColors.textDark,
         error: _AppColors.error,
         onError: Colors.white,
-        surface: _AppColors.lightSurface,
-        onSurface: _AppColors.slate950,
-        inverseSurface: _AppColors.slate100,
-        onInverseSurface: _AppColors.slate950,
-        inversePrimary: _AppColors.brandCyanLight,
-        surfaceTint: _AppColors.brandCyanLight,
+        errorContainer: Color(0xFFFFDAD6),
+        onErrorContainer: Color(0xFF410002),
+        outline: Color(0xFFCBD5E1),
       ),
       textTheme: baseTextTheme.apply(
-        bodyColor: _AppColors.slate950,
-        displayColor: _AppColors.slate950,
+        bodyColor: _AppColors.textDark,
+        displayColor: _AppColors.textDark,
       ),
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         centerTitle: false,
         elevation: 0,
-        scrolledUnderElevation: 0,
-        backgroundColor: _AppColors.lightSurface,
-        foregroundColor: _AppColors.slate950,
-        titleTextStyle: GoogleFonts.inter(
-          fontSize: 20,
-          fontWeight: FontWeight.w700,
-          color: _AppColors.slate950,
-        ),
+        backgroundColor: _AppColors.backgroundMint,
+        foregroundColor: _AppColors.textDark,
       ),
       cardTheme: CardThemeData(
-        color: _AppColors.lightSurface,
-        elevation: 0,
+        color: Colors.white,
+        elevation: 2,
+        shadowColor: _AppColors.primaryBlue.withValues(alpha: 0.1),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: _AppColors.slate200),
+          side: const BorderSide(color: Colors.black, width: 1.0),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: _AppColors.slate100,
+        fillColor: Colors.white,
+        floatingLabelStyle: WidgetStateTextStyle.resolveWith((states) {
+          if (states.contains(WidgetState.error)) {
+            return const TextStyle(color: _AppColors.error, fontWeight: FontWeight.bold);
+          }
+          return const TextStyle(color: _AppColors.primaryBlue);
+        }),
+        labelStyle: WidgetStateTextStyle.resolveWith((states) {
+          if (states.contains(WidgetState.error)) {
+            return const TextStyle(color: _AppColors.error);
+          }
+          return const TextStyle(color: _AppColors.textDark);
+        }),
+        errorStyle: const TextStyle(color: _AppColors.error, fontWeight: FontWeight.bold),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _AppColors.slate300),
+          borderSide: const BorderSide(color: _AppColors.fitnessGreen, width: 1),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _AppColors.slate300),
+          borderSide: BorderSide(color: _AppColors.fitnessGreen.withValues(alpha: 0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _AppColors.brandCyanLight, width: 1.5),
+          borderSide: const BorderSide(color: _AppColors.primaryBlue, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: _AppColors.error, width: 1),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: _AppColors.error, width: 2),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          elevation: 0,
-          minimumSize: const Size.fromHeight(52),
+          backgroundColor: _AppColors.primaryBlue,
+          foregroundColor: Colors.white,
+          minimumSize: const Size.fromHeight(54),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
-          textStyle: GoogleFonts.inter(
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-      chipTheme: ChipThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        side: const BorderSide(color: _AppColors.slate300),
-        selectedColor: _AppColors.brandCyanLight.withValues(alpha: 0.15),
-        backgroundColor: _AppColors.slate100,
-        labelStyle: GoogleFonts.inter(
-          fontWeight: FontWeight.w600,
-          color: _AppColors.slate900,
+          textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
       ),
     );
@@ -103,38 +103,32 @@ class AppTheme {
       useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: _AppColors.darkBackground,
-      colorScheme: ColorScheme.dark(
+      colorScheme: const ColorScheme.dark(
         primary: _AppColors.brandCyanDark,
-        onPrimary: _AppColors.slate950, // Dark text on bright cyan buttons
+        onPrimary: _AppColors.darkBackground,
         secondary: _AppColors.secondaryBlueDark,
-        onSecondary: _AppColors.slate950,
-        tertiary: _AppColors.accentOrangeDark,
-        onTertiary: _AppColors.slate950,
+        onSecondary: _AppColors.darkBackground,
+        tertiary: _AppColors.proteinIndigoDark,
+        onTertiary: Colors.white,
+        surface: _AppColors.darkSurface,
+        onSurface: _AppColors.darkText,
         error: _AppColors.error,
         onError: Colors.white,
-        surface: _AppColors.darkSurface,
-        onSurface: _AppColors.slate100,
-        outline: _AppColors.borderDark,
-        shadow: Colors.black,
-        inverseSurface: _AppColors.slate900,
-        onInverseSurface: _AppColors.slate100,
-        inversePrimary: _AppColors.brandCyanDark,
-        surfaceTint: _AppColors.brandCyanDark,
+        outline: _AppColors.darkBorder,
       ),
       textTheme: baseTextTheme.apply(
-        bodyColor: _AppColors.slate100,
-        displayColor: _AppColors.slate100,
+        bodyColor: _AppColors.darkText,
+        displayColor: _AppColors.darkText,
       ),
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         centerTitle: false,
         elevation: 0,
-        scrolledUnderElevation: 0,
-        backgroundColor: _AppColors.darkBackground, // Match scaffold background
-        foregroundColor: _AppColors.slate050,
-        titleTextStyle: GoogleFonts.inter(
+        backgroundColor: _AppColors.darkBackground,
+        foregroundColor: _AppColors.darkText,
+        titleTextStyle: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w700,
-          color: _AppColors.slate050,
+          color: _AppColors.darkText,
         ),
       ),
       cardTheme: CardThemeData(
@@ -142,19 +136,19 @@ class AppTheme {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: _AppColors.slate800),
+          side: const BorderSide(color: _AppColors.darkBorder),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: _AppColors.slate900,
+        fillColor: _AppColors.darkInputFill,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _AppColors.slate700),
+          borderSide: const BorderSide(color: _AppColors.darkBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: _AppColors.slate700),
+          borderSide: const BorderSide(color: _AppColors.darkBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -174,16 +168,6 @@ class AppTheme {
           ),
         ),
       ),
-      chipTheme: ChipThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        side: const BorderSide(color: _AppColors.slate700),
-        selectedColor: _AppColors.brandCyanDark.withValues(alpha: 0.2),
-        backgroundColor: _AppColors.slate900,
-        labelStyle: GoogleFonts.inter(
-          fontWeight: FontWeight.w600,
-          color: _AppColors.slate100,
-        ),
-      ),
     );
   }
 }
@@ -191,35 +175,30 @@ class AppTheme {
 class _AppColors {
   const _AppColors._();
 
-  // Primary Brand Colors — Cyan (matches Bonyaan logo)
-  static const Color brandCyanLight = Color(0xFF0099CC); // Deep cyan for light mode (readable on white)
-  static const Color brandCyanDark = Color(0xFF4DD9F0);  // Bright cyan for dark mode (pops on dark bg)
+  // Custom Light Palette
+  static const Color fitnessGreen = Color(0xFF69995D);
+  static const Color backgroundMint = Color(0xFFF7FFF7);
+  static const Color primaryBlue = Color(0xFF087CA7);
+  static const Color textDark = Color(0xFF1B1B1B);
 
-  // Secondary Colors
-  static const Color secondaryBlue = Color(0xFF3C70FF);
-  static const Color secondaryBlueDark = Color(0xFF85A1FF);
-
-  // Tertiary/Accent Colors
-  static const Color accentOrangeLight = Color(0xFFE55B2B); // Web Secondary Orange (Light Mode)
-  static const Color accentOrangeDark = Color(0xFFFFB066);  // Brightened Orange (Dark Mode)
-
+  // New Dark Palette Colors (Modern Dark Grey)
+  static const Color brandCyanDark = Color(0xFF268FB1); // Ocean Blue (Dimmed)
+  static const Color secondaryBlueDark = Color(0xFF5D9B53); // Sage Green (Dimmed)
+  static const Color proteinIndigoDark = Color(0xFF4F46E5); // Indigo (Dimmed)
+  static const Color darkBackground = Color(0xFF121212); // Dark Grey
+  static const Color darkSurface = Color(0xFF1E1E1E); // Slightly lighter grey surface
   static const Color error = Color(0xFFEF4444);
 
-  // Backgrounds & Surfaces (Tailwind Slate)
-  static const Color lightBackground = Color(0xFFF8FAFC);
-  static const Color lightSurface = Color(0xFFFFFFFF);
-  static const Color darkBackground = Color(0xFF0F172A);
-  static const Color darkSurface = Color(0xFF1E293B);
+  // Dark Mode Support Colors
+  static const Color darkText = Color(0xFFE2E2E2); // Off-white/grey text
+  static const Color darkBorder = Color(0xFF2C2C2C); // Grey border
+  static const Color darkInputFill = Color(0xFF242424); // Input background
 
-  // Text & Borders
+  // UI Support Colors
   static const Color slate050 = Color(0xFFF9FAFB);
   static const Color slate100 = Color(0xFFF1F5F9);
-  static const Color slate200 = Color(0xFFE2E8F0);
-  static const Color slate300 = Color(0xFFCBD5E1);
   static const Color slate700 = Color(0xFF334155);
   static const Color slate800 = Color(0xFF1E293B);
   static const Color slate900 = Color(0xFF0F172A);
   static const Color slate950 = Color(0xFF020617);
-
-  static const Color borderDark = Color(0xFF334155);
 }

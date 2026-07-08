@@ -7,7 +7,10 @@ import '../../../../core/providers/allergy_provider.dart';
 import '../../../../core/widgets/bonyaan_logo.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final VoidCallback? onBack;
+  final VoidCallback? onNavigateToSettings;
+
+  const ProfilePage({super.key, this.onBack, this.onNavigateToSettings});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -23,8 +26,6 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadProfileData() async {
-    // Only fetch the health profile. The generic user profile fetch 
-    // was removed to avoid the 'id' field mismatch.
     final profileProvider = context.read<ProfileProvider>();
     final allergyProvider = context.read<AllergyProvider>();
     await Future.wait([
@@ -65,7 +66,6 @@ class _ProfilePageState extends State<ProfilePage> {
     final progressProvider = context.watch<ProgressProvider>();
     
     final authUser = authProvider.currentUser;
-    // Safely combine names if they exist, checking local overrides first
     final customFirst = progressProvider.customFirstName;
     final customLast = progressProvider.customLastName;
     
@@ -77,45 +77,68 @@ class _ProfilePageState extends State<ProfilePage> {
     final metrics = profileProvider.healthMetrics;
 
     return SafeArea(
+      bottom: false,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        padding: const EdgeInsets.fromLTRB(16, 40, 16, 20), // Added whitespace at the top
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Text(
-                        'My Profile',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'View and manage your health information',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurface.withOpacity(0.70),
-                            ),
+                      if (widget.onBack != null)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 0), // Reduced whitespace
+                          child: IconButton(
+                            onPressed: widget.onBack,
+                            icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                            color: colorScheme.onSurface,
+                          ),
+                        ),
+                      Expanded(
+                        child: Text(
+                          'My Profile',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18, // Smaller text
+                                color: colorScheme.onSurface,
+                              ),
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const BonyaanLogo.small(),
+                if (widget.onNavigateToSettings != null)
+                  IconButton(
+                    onPressed: widget.onNavigateToSettings,
+                    icon: Icon(Icons.settings_outlined, color: colorScheme.primary, size: 28),
+                  )
+                else
+                  const BonyaanLogo.small(),
               ],
             ),
             const SizedBox(height: 24),
+            Text(
+              'Personal Data',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
+            ),
+            const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: colorScheme.surface,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
+                border: Border.all(
+                  color: colorScheme.outline,
+                  width: 1.0,
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,7 +235,6 @@ class _ProfilePageState extends State<ProfilePage> {
                         children: [
                           Expanded(child: _buildProfileStat(context, 'Age', metrics?.age?.toString() ?? 'N/A')),
                           const SizedBox(width: 12),
-                          // FIXED: Converted Enum to string using .name
                           Expanded(child: _buildProfileStat(context, 'Gender', metrics?.gender?.name ?? 'N/A')),
                         ],
                       ),
@@ -243,7 +265,10 @@ class _ProfilePageState extends State<ProfilePage> {
               decoration: BoxDecoration(
                 color: colorScheme.surface,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
+                border: Border.all(
+                  color: colorScheme.outline,
+                  width: 1.0,
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -288,7 +313,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     children: [
                       Row(
                         children: [
-                          // FIXED: Converted Enum to string using .name
                           Expanded(child: _buildMetricTile(context, 'Primary Goal', metrics?.dietGoal?.name ?? 'N/A', null)),
                           const SizedBox(width: 12),
                           Expanded(child: _buildMetricTile(context, 'Target Weight', '${metrics?.targetWeightKg ?? 'N/A'} kg', null)),
@@ -297,7 +321,6 @@ class _ProfilePageState extends State<ProfilePage> {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          // FIXED: Converted Enum to string using .name
                           Expanded(child: _buildMetricTile(context, 'Diet Type', metrics?.dietType?.name ?? 'N/A', null)),
                           const SizedBox(width: 12),
                           Expanded(child: _buildMetricTile(context, 'Daily Calorie Goal', '${metrics?.dailyCalorieTarget ?? 'N/A'} kcal', null)),
@@ -322,7 +345,10 @@ class _ProfilePageState extends State<ProfilePage> {
               decoration: BoxDecoration(
                 color: colorScheme.surface,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
+                border: Border.all(
+                  color: colorScheme.outline,
+                  width: 1.0,
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -363,7 +389,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ],
               ),
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 120), // Padding for floating nav bar
           ],
         ),
       ),
@@ -423,7 +449,10 @@ class _ProfilePageState extends State<ProfilePage> {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
+        border: Border.all(
+          color: colorScheme.outline,
+          width: 1.0,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

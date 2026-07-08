@@ -2,18 +2,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'core/theme/app_theme.dart';
-import 'core/network/api_client.dart';
-import 'core/network/token_storage_impl.dart';
-import 'core/repositories/repositories.dart';
-import 'core/providers/providers.dart';
-import 'features/auth/presentation/pages/login_page.dart';
-import 'features/auth/presentation/providers/auth_provider.dart';
-import 'features/dashboard/presentation/pages/main_dashboard.dart';
-import 'features/onboarding/data/repositories/metrics_repository.dart';
-import 'features/onboarding/presentation/pages/onboarding_wizard.dart';
-import 'features/onboarding/presentation/providers/onboarding_provider.dart';
-import 'features/splash/splash_screen.dart';
+import 'package:bonyaan_app/core/theme/app_theme.dart';
+import 'package:bonyaan_app/core/network/api_client.dart';
+import 'package:bonyaan_app/core/network/token_storage_impl.dart';
+import 'package:bonyaan_app/core/repositories/repositories.dart';
+import 'package:bonyaan_app/core/providers/providers.dart';
+import 'package:bonyaan_app/features/auth/presentation/pages/login_page.dart';
+import 'package:bonyaan_app/features/auth/presentation/providers/auth_provider.dart';
+import 'package:bonyaan_app/features/dashboard/presentation/pages/main_dashboard.dart';
+import 'package:bonyaan_app/features/onboarding/data/repositories/metrics_repository.dart';
+import 'package:bonyaan_app/features/onboarding/presentation/providers/onboarding_provider.dart';
+import 'package:bonyaan_app/features/splash/splash_screen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -27,7 +26,7 @@ Future<void> main() async {
   final authProvider = AuthProvider(tokenStorage: tokenStorage);
   
   final apiClient = ApiClient(
-    baseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'https://20703738d10865.lhr.life/'),
+    baseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'https://18ed0c9d2ec32e.lhr.life'),
     tokenStorage: tokenStorage,
     onUnauthorized: () {
       authProvider.logout();
@@ -127,12 +126,7 @@ class MyApp extends StatelessWidget {
                         );
                       }
 
-                      if (onboardingProvider.submissionStatus == OnboardingSubmissionStatus.success ||
-                          onboardingProvider.savedProfile != null) {
-                        return const MainDashboard();
-                      }
-
-                      return const OnboardingWizard();
+                      return const MainDashboard();
 
                     case AuthStatus.unauthenticated:
                       return const LoginPage();

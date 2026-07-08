@@ -1,5 +1,5 @@
-/// Authentication Repository
-/// Handles user authentication (login, register, email confirmation)
+// Authentication Repository
+// Handles user authentication (login, register, email confirmation)
 import 'package:bonyaan_app/core/models/models.dart';
 import 'package:bonyaan_app/core/network/api_client.dart';
 import 'package:bonyaan_app/core/network/exceptions.dart';

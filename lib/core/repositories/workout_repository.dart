@@ -1,5 +1,5 @@
-/// Workout Plan Repository
-/// Handles workout plan CRUD operations and AI generation
+// Workout Plan Repository
+// Handles workout plan CRUD operations and AI generation
 import 'package:bonyaan_app/core/models/models.dart';
 import 'package:bonyaan_app/core/network/api_client.dart';
 import 'package:bonyaan_app/core/network/exceptions.dart';
@@ -85,19 +85,27 @@ class WorkoutRepository {
         );
       }
 
-      final jsonMap = response as Map<String, dynamic>;
-      final data = jsonMap['data'];
-
-      if (data is List) {
-        return data
-            .map((item) => WorkoutPlan.fromJson(item as Map<String, dynamic>))
+      // Robustly handle both List and Map (with or without 'data' wrapper)
+      if (response is List) {
+        return response
+            .map((item) => WorkoutPlan.fromJson(Map<String, dynamic>.from(item as Map)))
             .toList();
-      } else if (data is Map<String, dynamic>) {
-        final plan = WorkoutPlan.fromJson(data);
-        if (plan.planName != null) return [plan];
-      } else if (data == null) {
-        final plan = WorkoutPlan.fromJson(jsonMap);
-        if (plan.planName != null) return [plan];
+      }
+
+      if (response is Map<String, dynamic>) {
+        final data = response['data'];
+
+        if (data is List) {
+          return data
+              .map((item) => WorkoutPlan.fromJson(Map<String, dynamic>.from(item as Map)))
+              .toList();
+        } else if (data is Map<String, dynamic>) {
+          final plan = WorkoutPlan.fromJson(data);
+          if (plan.planName != null) return [plan];
+        } else if (data == null) {
+          final plan = WorkoutPlan.fromJson(response);
+          if (plan.planName != null) return [plan];
+        }
       }
 
       return [];
@@ -129,11 +137,30 @@ class WorkoutRepository {
         );
       }
 
-      final jsonMap = response as Map<String, dynamic>;
-      final data = jsonMap['data'] ?? jsonMap;
+      // Robustly handle List, Map, and 'data' wrapper
+      Map<String, dynamic> data;
+      if (response is List) {
+        if (response.isEmpty) {
+          throw NotFoundException(message: 'No workout plan found for current user.');
+        }
+        data = Map<String, dynamic>.from(response.first as Map);
+      } else if (response is Map<String, dynamic>) {
+        data = (response['data'] is Map) 
+            ? Map<String, dynamic>.from(response['data'] as Map) 
+            : response;
+            
+        // If response['data'] is a List (e.g. {"data": [...]})
+        if (response['data'] is List) {
+           final list = response['data'] as List;
+           if (list.isEmpty) throw NotFoundException(message: 'No workout plan found.');
+           data = Map<String, dynamic>.from(list.first as Map);
+        }
+      } else {
+        throw ParseException(message: 'Unexpected response format: ${response.runtimeType}');
+      }
       
       print('🔥 RAW WORKOUT JSON: $data');
-      return WorkoutPlan.fromJson(data as Map<String, dynamic>);
+      return WorkoutPlan.fromJson(data);
     } on ApiException catch (e) {
       print('🔥 WORKOUT FETCH ERROR: $e');
       rethrow;
@@ -163,7 +190,14 @@ class WorkoutRepository {
         );
       }
 
-      return TodayWorkout.fromJson(response as Map<String, dynamic>);
+      if (response is Map<String, dynamic>) {
+        return TodayWorkout.fromJson(response);
+      } else if (response is List) {
+        if (response.isEmpty) throw NotFoundException(message: 'No workout for today.');
+        return TodayWorkout.fromJson(Map<String, dynamic>.from(response.first as Map));
+      }
+      
+      throw ParseException(message: 'Unexpected response format for today workout');
     } on ApiException {
       rethrow;
     } catch (e) {

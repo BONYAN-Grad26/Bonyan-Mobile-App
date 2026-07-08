@@ -34,6 +34,11 @@ class AllergyProvider extends ChangeNotifier {
       _allergies = await _allergyRepository.getMyAllergies();
       _isLoading = false;
       notifyListeners();
+    } on NotFoundException {
+      _allergies = [];
+      _errorMessage = null;
+      _isLoading = false;
+      notifyListeners();
     } on ApiException catch (e) {
       _errorMessage = e.message;
       _isLoading = false;

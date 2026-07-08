@@ -16,10 +16,10 @@ class Ingredient {
 
   factory Ingredient.fromJson(Map<String, dynamic> json) {
     return Ingredient(
-      ingredientId: json['ingredientId'] as int?,
-      ingredientName: json['ingredientName'] as String? ?? '',
-      quantity: (json['quantity'] as num?)?.toDouble() ?? 0.0,
-      measurementUnit: json['measurementUnit'] as String? ?? '',
+      ingredientId: _toInt(json['ingredientId']),
+      ingredientName: json['ingredientName']?.toString() ?? '',
+      quantity: _toDouble(json['quantity']) ?? 0.0,
+      measurementUnit: json['measurementUnit']?.toString() ?? '',
     );
   }
 
@@ -59,18 +59,16 @@ class Meal {
   });
 
   factory Meal.fromJson(Map<String, dynamic> jsonMap) {
-    final json = jsonMap.containsKey('data') && jsonMap['data'] is Map<String, dynamic>
-        ? jsonMap['data'] as Map<String, dynamic>
-        : jsonMap;
+    final json = jsonMap.containsKey('data') && jsonMap['data'] is Map ? Map<String, dynamic>.from(jsonMap['data'] as Map) : jsonMap;
 
     return Meal(
-      id: json['id'] as int?,
-      name: json['name'] as String? ?? '',
-      mealType: json['mealType'] as String? ?? '',
-      description: json['description'] as String? ?? '',
-      preparationTime: json['preparationTime'] as int?,
-      preparationInstructions: json['preparationInstructions'] as String? ?? '',
-      order: json['order'] as int?,
+      id: _toInt(json['id']),
+      name: (json['name'] ?? json['meal_name'])?.toString() ?? '',
+      mealType: (json['mealType'] ?? json['meal_type'])?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      preparationTime: _toInt(json['preparationTime'] ?? json['preparation_time']),
+      preparationInstructions: (json['preparationInstructions'] ?? json['preparation_instructions'] ?? json['instructions'])?.toString() ?? '',
+      order: _toInt(json['order'] ?? json['meal_order']),
       ingredients: (json['ingredients'] as List?)
           ?.where((e) => e != null)
           .map((item) => Ingredient.fromJson(Map<String, dynamic>.from(item as Map)))
@@ -126,12 +124,10 @@ class DayPlan {
   });
 
   factory DayPlan.fromJson(Map<String, dynamic> jsonMap) {
-    final json = jsonMap.containsKey('data') && jsonMap['data'] is Map<String, dynamic>
-        ? jsonMap['data'] as Map<String, dynamic>
-        : jsonMap;
+    final json = jsonMap.containsKey('data') && jsonMap['data'] is Map ? Map<String, dynamic>.from(jsonMap['data'] as Map) : jsonMap;
 
       List<Meal> parsedMeals = [];
-      var rawMeals = json['data'] != null ? json['data']['meals'] : json['meals'];
+      var rawMeals = (json['data'] is Map) ? json['data']['meals'] : (json['meals'] ?? json['meal_plans']);
 
       if (rawMeals is List) {
         for (int i = 0; i < rawMeals.length; i++) {
@@ -139,23 +135,23 @@ class DayPlan {
             Map<String, dynamic> mealMap = Map<String, dynamic>.from(rawMeals[i] as Map);
             parsedMeals.add(Meal.fromJson(mealMap));
           } catch (e) {
-            // Silently ignore failed meals or log to analytics in production
+            // Silently ignore failed meals
           }
         }
       }
 
       return DayPlan(
-        id: json['id'] as int?,
-        date: json['date'] as String? ?? '',
-        dayOfWeek: json['dayOfWeek'] as int?,
-        targetCalories: (json['targetCalories'] as num?)?.toDouble() ?? 0.0,
-        targetProtein: (json['targetProtein'] as num?)?.toDouble() ?? 0.0,
-        targetCarbs: (json['targetCarbs'] as num?)?.toDouble() ?? 0.0,
-        targetFat: (json['targetFat'] as num?)?.toDouble() ?? 0.0,
-        targetFiber: (json['targetFiber'] as num?)?.toDouble() ?? 0.0,
-        targetSugar: (json['targetSugar'] as num?)?.toDouble() ?? 0.0,
-        waterGoal: (json['waterGoal'] as num?)?.toDouble() ?? 0.0,
-        aiDailyTips: json['aiDailyTips'] as String? ?? '',
+        id: _toInt(json['id']),
+        date: (json['date'] ?? json['plan_date'])?.toString() ?? '',
+        dayOfWeek: _toInt(json['dayOfWeek'] ?? json['day_of_week']),
+        targetCalories: _toDouble(json['targetCalories'] ?? json['target_calories'] ?? json['calories']) ?? 0.0,
+        targetProtein: _toDouble(json['targetProtein'] ?? json['target_protein'] ?? json['protein']) ?? 0.0,
+        targetCarbs: _toDouble(json['targetCarbs'] ?? json['target_carbs'] ?? json['carbs']) ?? 0.0,
+        targetFat: _toDouble(json['targetFat'] ?? json['target_fat'] ?? json['fat']) ?? 0.0,
+        targetFiber: _toDouble(json['targetFiber'] ?? json['target_fiber'] ?? json['fiber']) ?? 0.0,
+        targetSugar: _toDouble(json['targetSugar'] ?? json['target_sugar'] ?? json['sugar']) ?? 0.0,
+        waterGoal: _toDouble(json['waterGoal'] ?? json['water_goal']) ?? 0.0,
+        aiDailyTips: (json['aiDailyTips'] ?? json['ai_tips'] ?? json['tips'])?.toString() ?? '',
         meals: parsedMeals,
       );
     }
@@ -210,23 +206,22 @@ class WeeklyPlan {
   });
 
   factory WeeklyPlan.fromJson(Map<String, dynamic> jsonMap) {
-    final json = jsonMap.containsKey('data') && jsonMap['data'] is Map<String, dynamic>
-        ? jsonMap['data'] as Map<String, dynamic>
-        : jsonMap;
+    final json = jsonMap.containsKey('data') && jsonMap['data'] is Map ? Map<String, dynamic>.from(jsonMap['data'] as Map) : jsonMap;
 
     return WeeklyPlan(
-      id: json['id'] as int?,
-      weekNumber: json['weekNumber'] as int?,
-      startDate: json['startDate'] as String?,
-      endDate: json['endDate'] as String?,
-      weeklyCalorieTarget: (json['weeklyCalorieTarget'] as num?)?.toDouble(),
-      weeklyProteinTarget: (json['weeklyProteinTarget'] as num?)?.toDouble(),
-      weeklyCarbTarget: (json['weeklyCarbTarget'] as num?)?.toDouble(),
-      weeklyFatTarget: (json['weeklyFatTarget'] as num?)?.toDouble(),
-      weeklyStrategy: json['weeklyStrategy'] as String?,
-      aiPreparationTips: json['aiPreparationTips'] as String?,
-      days: ((json['days'] ?? json['dailyPlans']) as List?)
-          ?.map((item) => DayPlan.fromJson(item as Map<String, dynamic>))
+      id: _toInt(json['id']),
+      weekNumber: _toInt(json['weekNumber'] ?? json['week_number']),
+      startDate: (json['startDate'] ?? json['start_date'])?.toString(),
+      endDate: (json['endDate'] ?? json['end_date'])?.toString(),
+      weeklyCalorieTarget: _toDouble(json['weeklyCalorieTarget'] ?? json['weekly_calorie_target']),
+      weeklyProteinTarget: _toDouble(json['weeklyProteinTarget'] ?? json['weekly_protein_target']),
+      weeklyCarbTarget: _toDouble(json['weeklyCarbTarget'] ?? json['weekly_carb_target']),
+      weeklyFatTarget: _toDouble(json['weeklyFatTarget'] ?? json['weekly_fat_target']),
+      weeklyStrategy: (json['weeklyStrategy'] ?? json['weekly_strategy'])?.toString(),
+      aiPreparationTips: (json['aiPreparationTips'] ?? json['ai_prep_tips'])?.toString(),
+      days: ((json['days'] ?? json['dailyPlans'] ?? json['daily_plans']) as List?)
+          ?.where((e) => e != null)
+          .map((item) => DayPlan.fromJson(Map<String, dynamic>.from(item as Map)))
           .toList(),
     );
   }
@@ -250,4 +245,20 @@ class WeeklyPlan {
   @override
   String toString() =>
       'WeeklyPlan(week: $weekNumber, start: $startDate, days: ${days?.length}, calories: $weeklyCalorieTarget)';
+}
+
+int? _toInt(dynamic value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) return int.tryParse(value);
+  return null;
+}
+
+double? _toDouble(dynamic value) {
+  if (value == null) return null;
+  if (value is double) return value;
+  if (value is num) return value.toDouble();
+  if (value is String) return double.tryParse(value);
+  return null;
 }

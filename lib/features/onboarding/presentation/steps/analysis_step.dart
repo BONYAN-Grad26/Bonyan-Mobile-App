@@ -126,7 +126,8 @@ class _SummaryCard extends StatelessWidget {
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: colorScheme.outline.withValues(alpha: 0.2),
+          color: colorScheme.outline,
+          width: 1.0,
         ),
       ),
       child: Column(

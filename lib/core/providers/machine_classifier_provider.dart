@@ -58,8 +58,8 @@ class MachineClassifierProvider extends ChangeNotifier {
         'https://fitness-part.onrender.com/predict',
         data: formData,
         options: Options(
-          sendTimeout: const Duration(seconds: 180),
-          receiveTimeout: const Duration(seconds: 180),
+          sendTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 30),
         ),
       );
 
@@ -70,7 +70,11 @@ class MachineClassifierProvider extends ChangeNotifier {
       }
     } catch (e) {
       if (e is DioException) {
-        _error = 'Network error: ${e.message}';
+        if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout) {
+          _error = 'The AI server is waking up (this can take 60s on first use). Please try again in a moment.';
+        } else {
+          _error = 'Network error: ${e.message}';
+        }
       } else {
         _error = 'An unexpected error occurred.';
       }

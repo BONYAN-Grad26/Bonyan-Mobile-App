@@ -1,5 +1,5 @@
-/// Health Profile Repository
-/// Handles health metrics CRUD operations
+// Health Profile Repository
+// Handles health metrics CRUD operations
 import 'package:bonyaan_app/core/models/models.dart';
 import 'package:bonyaan_app/core/network/api_client.dart';
 import 'package:bonyaan_app/core/network/exceptions.dart';
@@ -26,7 +26,14 @@ class HealthProfileRepository {
         );
       }
 
-      return HealthMetrics.fromJson(response as Map<String, dynamic>);
+      if (response is Map<String, dynamic>) {
+        return HealthMetrics.fromJson(response);
+      } else if (response is List) {
+        if (response.isEmpty) throw NotFoundException(message: 'Health profile not found');
+        return HealthMetrics.fromJson(Map<String, dynamic>.from(response.first as Map));
+      }
+
+      throw ParseException(message: 'Unexpected response format for health profile');
     } on ApiException {
       rethrow;
     } catch (e) {

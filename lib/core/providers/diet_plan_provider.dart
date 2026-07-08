@@ -115,6 +115,12 @@ class DietPlanProvider extends ChangeNotifier {
       }
       _isLoading = false;
       notifyListeners();
+    } on NotFoundException {
+      _weeklyPlans = [];
+      _currentPlan = null;
+      _isLoading = false;
+      _errorMessage = null;
+      notifyListeners();
     } on ApiException catch (e) {
       _errorMessage = e.message;
       _isLoading = false;

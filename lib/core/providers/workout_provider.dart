@@ -122,6 +122,11 @@ class WorkoutProvider extends ChangeNotifier {
       _userWorkouts = await _workoutRepository.getUserWorkouts(userId);
       _isLoading = false;
       notifyListeners();
+    } on NotFoundException {
+      _userWorkouts = [];
+      _isLoading = false;
+      _errorMessage = null;
+      notifyListeners();
     } on ApiException catch (e) {
       _errorMessage = e.message;
       _isLoading = false;

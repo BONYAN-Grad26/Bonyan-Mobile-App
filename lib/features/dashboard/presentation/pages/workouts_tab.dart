@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../core/models/models.dart';
-import '../../../../core/providers/providers.dart';
+import 'package:bonyaan_app/core/models/models.dart';
+import 'package:bonyaan_app/core/providers/providers.dart';
 import '../widgets/machine_classifier_sheet.dart';
 
 class WorkoutsTab extends StatefulWidget {
@@ -16,7 +16,6 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
   DateTime _selectedDate = DateTime.now();
   bool _isGenerating = false;
   final ScrollController _scrollController = ScrollController();
-  bool _scrolledToToday = false;
 
   @override
   void dispose() {
@@ -34,9 +33,21 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
 
   Future<void> _loadData([bool isRefresh = false]) async {
     final workoutProvider = context.read<WorkoutProvider>();
+    
+    final futures = <Future<void>>[];
+    
     if (isRefresh || workoutProvider.currentPlan == null) {
-      // Force the fetch regardless of authProvider state
-      await workoutProvider.fetchCurrentWorkoutPlan(); 
+      futures.add(workoutProvider.fetchCurrentWorkoutPlan());
+    }
+    
+    if (isRefresh || workoutProvider.todayWorkout == null) {
+      futures.add(workoutProvider.fetchTodayWorkout());
+    }
+    
+    if (futures.isNotEmpty) {
+      await Future.wait(futures.map((f) => f.catchError((e) {
+        debugPrint('Workout background load error: $e');
+      })));
     }
   }
 
@@ -54,12 +65,7 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
       } else {
         final wp = context.read<WorkoutProvider>();
         final error = wp.generationError ?? wp.errorMessage ?? 'Failed to generate plan.';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error)),
-        );
-        if (wp.generationError != null) {
-          _loadData();
-        }
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
       }
     }
   }
@@ -70,530 +76,89 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
     final workoutProvider = context.watch<WorkoutProvider>();
     final progressProvider = context.watch<ProgressProvider>();
 
-    if (!_scrolledToToday) {
-      _scrolledToToday = true;
-      final int todayIdx = DateTime.now().weekday - 1; // Monday=0
-      if (todayIdx > 0) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (_scrollController.hasClients) {
-            _scrollController.animateTo(
-              todayIdx * 102.0,
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-            );
-          }
-        });
-      }
-    }
-
-    if (workoutProvider.isLoading) {
+    // Loading State - Only show full screen if we have no data at all
+    if (workoutProvider.isLoading && workoutProvider.currentPlan == null) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (workoutProvider.errorMessage != null) {
+    final currentPlan = workoutProvider.currentPlan;
+    final todayWorkout = workoutProvider.todayWorkout;
+
+    // Error State - Only show full error if we have absolutely no data to show
+    final hasNoData = currentPlan == null && todayWorkout == null;
+    if (workoutProvider.errorMessage != null && hasNoData) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 48, color: colorScheme.error),
-            const SizedBox(height: 16),
-            Text(workoutProvider.errorMessage!, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => _loadData(true),
-              child: const Text('Retry'),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+              const SizedBox(height: 16),
+              Text(
+                'Workout API Error',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(workoutProvider.errorMessage!, textAlign: TextAlign.center),
+              const SizedBox(height: 24),
+              ElevatedButton(onPressed: () => _loadData(true), child: const Text('Retry')),
+            ],
+          ),
         ),
       );
     }
 
-    final currentPlan = workoutProvider.currentPlan;
     final weeklySchedule = currentPlan?.weeklySchedule ?? {};
 
-    String getWeekday(DateTime d) {
-      return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][d.weekday - 1];
-    }
-    String getShortWeekday(DateTime d) {
-      return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][d.weekday - 1];
+    String getWeekdayName(DateTime d) => ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][d.weekday - 1];
+    String getShortWeekday(DateTime d) => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][d.weekday - 1];
+
+    final selectedWeekday = getWeekdayName(_selectedDate);
+    final isSelectedToday = _selectedDate.day == DateTime.now().day && 
+                           _selectedDate.month == DateTime.now().month && 
+                           _selectedDate.year == DateTime.now().year;
+
+    WorkoutDay? selectedWorkoutDay = weeklySchedule[selectedWeekday];
+    
+    // Fallback logic: If selected day is today and we have a todayWorkout, use it
+    if (isSelectedToday && todayWorkout != null) {
+      if (selectedWorkoutDay == null || (selectedWorkoutDay.exercises?.isEmpty ?? true)) {
+        selectedWorkoutDay = WorkoutDay(
+          session: todayWorkout.session,
+          focus: todayWorkout.focus,
+          exercises: todayWorkout.exercises,
+        );
+      }
     }
 
-    final selectedWeekday = getWeekday(_selectedDate);
-    final selectedWorkoutDay = weeklySchedule[selectedWeekday];
-    
     final displayWorkouts = <WorkoutDay>[];
     if (selectedWorkoutDay != null && selectedWorkoutDay.exercises != null && selectedWorkoutDay.exercises!.isNotEmpty) {
       displayWorkouts.add(selectedWorkoutDay);
     }
 
-    return SafeArea(
-      child: RefreshIndicator(
-        onRefresh: () => _loadData(true),
-        child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Workout Plans',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
-                            ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Your AI-powered personalized training program',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurface.withOpacity(0.70),
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              ],
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (context) => const MachineClassifierSheet(),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: colorScheme.primaryContainer,
-                  foregroundColor: colorScheme.onPrimaryContainer,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  elevation: 0,
-                ),
-                icon: const Icon(Icons.document_scanner_outlined),
-                label: const Text(
-                  'Identify Gym Machine',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+    return RefreshIndicator(
+      onRefresh: () => _loadData(true),
+      child: CustomScrollView(
+        slivers: [
+          SliverSafeArea(
+            bottom: false,
+            sliver: SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 40, 16, 20), // Added whitespace at the top
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  _buildHeader(context, colorScheme),
+                  const SizedBox(height: 24),
+                  _buildScannerButton(context, colorScheme),
+                  const SizedBox(height: 24),
+                  _buildWeekSplit(context, weeklySchedule, colorScheme, progressProvider, getWeekdayName, getShortWeekday),
+                  const SizedBox(height: 24),
+                  _buildWorkoutList(context, displayWorkouts, currentPlan, colorScheme, progressProvider),
+                  const SizedBox(height: 24),
+                  _buildStatsCard(context, workoutProvider, progressProvider, colorScheme),
+                  const SizedBox(height: 120), // Padding for nav bar
+                ]),
               ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'This Week’s Split',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 16),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              controller: _scrollController,
-              child: Row(
-                children: [
-                  for (var i = 0; i < 7; i++)
-                    Builder(builder: (context) {
-                      // Generate the dates for the current week starting from Monday
-                      final currentDay = DateTime.now();
-                      final startOfWeek = currentDay.subtract(Duration(days: currentDay.weekday - 1));
-                      final dayDate = startOfWeek.add(Duration(days: i));
-                      final dayName = getWeekday(dayDate);
-                      final dayShortName = getShortWeekday(dayDate);
-                      
-                      final wDay = weeklySchedule[dayName];
-                      final isRest = wDay == null || wDay.exercises == null || wDay.exercises!.isEmpty;
-                      final isSelected = dayDate.year == _selectedDate.year && dayDate.month == _selectedDate.month && dayDate.day == _selectedDate.day;
-                      
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedDate = dayDate;
-                          });
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 10),
-                          child: Container(
-                            width: 92,
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? colorScheme.primary.withValues(alpha: 0.12)
-                                  : colorScheme.surface,
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(
-                                color: isSelected
-                                    ? colorScheme.primary
-                                    : colorScheme.outline.withValues(alpha: 0.18),
-                              ),
-                            ),
-                            child: Column(
-                              children: [
-                                Text(
-                                  dayShortName,
-                                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                        color: colorScheme.onSurface,
-                                      ),
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    if (isRest || progressProvider.isWorkoutCompleted((wDay.session ?? 'Workout').hashCode)) ...[
-                                      Icon(Icons.check_circle, size: 14, color: colorScheme.primary),
-                                      const SizedBox(width: 4),
-                                    ],
-                                    Flexible(
-                                      child: Text(
-                                        isRest ? 'Rest' : (wDay.session?.split(' ').first ?? 'Workout'),
-                                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                              fontWeight: FontWeight.bold,
-                                              color: colorScheme.onSurface,
-                                            ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    }),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Your Workouts',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 16),
-            if (displayWorkouts.isEmpty)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: colorScheme.outline.withValues(alpha: 0.16)),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.fitness_center, size: 64, color: colorScheme.primary.withValues(alpha: 0.5)),
-                    const SizedBox(height: 16),
-                    Text(
-                      currentPlan == null ? 'No Workouts Scheduled' : 'Rest Day',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      currentPlan == null 
-                        ? 'Generate your AI-powered weekly workout plan to see your personalized schedule for today.'
-                        : 'Take a well-deserved rest today. Your body needs it to recover and build muscle!',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurface.withValues(alpha: 0.70),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    if (currentPlan == null)
-                      ElevatedButton.icon(
-                        onPressed: _isGenerating ? null : _generatePlan,
-                        icon: _isGenerating 
-                            ? SizedBox(
-                                width: 18, height: 18, 
-                                child: CircularProgressIndicator(strokeWidth: 2, color: colorScheme.onPrimary)
-                              )
-                            : const Icon(Icons.auto_awesome),
-                        label: const Text('Generate AI Plan', style: TextStyle(fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: colorScheme.primary,
-                          foregroundColor: colorScheme.onPrimary,
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              )
-            else
-              Column(
-                children: displayWorkouts.map((workout) {
-                  // Workout is a WorkoutDay
-                  final name = workout.session ?? 'Workout Session';
-                  final type = 'Daily Session';
-                  final exercisesCount = workout.exercises?.length ?? 0;
-                  final duration = '${exercisesCount * 5 + 10} min'; // Est: 5m per exercise + 10m warmup
-                  final scheduled = _selectedDate.toIso8601String().split('T')[0];
-                  
-                  final focusAreas = <String>[];
-                  if (workout.focus != null) {
-                    focusAreas.addAll(workout.focus!.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty));
-                  }
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: colorScheme.surface,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.16)),
-                      ),
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Icon(Icons.fitness_center, color: colorScheme.primary, size: 18),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          type,
-                                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                color: colorScheme.onSurface.withValues(alpha: 0.65),
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      name,
-                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                            fontWeight: FontWeight.bold,
-                                            color: colorScheme.onSurface,
-                                          ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        Icon(Icons.schedule, size: 16, color: colorScheme.onSurface.withValues(alpha: 0.65)),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          scheduled,
-                                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                color: colorScheme.onSurface.withValues(alpha: 0.65),
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if (!(name.toLowerCase().contains('rest') || (workout.exercises == null || workout.exercises!.isEmpty)))
-                                Checkbox(
-                                  value: progressProvider.isWorkoutCompleted(name.hashCode),
-                                  onChanged: (val) => progressProvider.toggleWorkout(name.hashCode, val ?? false),
-                                ),
-
-                            ],
-                          ),
-                          const SizedBox(height: 18),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildWorkoutStat(context, 'Duration', duration),
-                              const SizedBox(width: 8),
-                              _buildWorkoutStat(context, 'Exercises', '$exercisesCount'),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                flex: 2,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(
-                                        'Focus Areas',
-                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                              color: colorScheme.onSurface.withOpacity(0.65),
-                                            ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    if (focusAreas.isNotEmpty)
-                                      Wrap(
-                                        spacing: 6,
-                                        runSpacing: 6,
-                                        children: focusAreas
-                                            .map((area) => Container(
-                                                  padding: const EdgeInsets.symmetric(
-                                                    horizontal: 10,
-                                                    vertical: 6,
-                                                  ),
-                                                  decoration: BoxDecoration(
-                                                    color: colorScheme.primary.withOpacity(0.12),
-                                                    borderRadius: BorderRadius.circular(12),
-                                                  ),
-                                                  child: Text(
-                                                    area,
-                                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                                          color: colorScheme.primary,
-                                                        ),
-                                                  ),
-                                                ))
-                                            .toList(),
-                                      )
-                                    else
-                                      Text(
-                                        'N/A',
-                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                              color: colorScheme.onSurface.withOpacity(0.65),
-                                            ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            const SizedBox(height: 16),
-            Builder(
-              builder: (context) {
-                int totalWorkouts = 0;
-                int completedWorkouts = 0;
-                int completedDuration = 0;
-
-                if (workoutProvider.currentPlan?.weeklySchedule != null) {
-                  workoutProvider.currentPlan!.weeklySchedule!.values.forEach((workout) {
-                    final name = workout.session ?? 'Rest Day';
-                    final isRestDay = name.toLowerCase().contains('rest') || (workout.exercises == null || workout.exercises!.isEmpty);
-                    
-                    if (!isRestDay) {
-                      totalWorkouts++;
-                      final durationMins = (workout.exercises?.length ?? 0) * 5 + 10;
-                      
-                      if (progressProvider.isWorkoutCompleted(name.hashCode)) {
-                        completedWorkouts++;
-                        completedDuration += durationMins;
-                      }
-                    }
-                  });
-                }
-
-                if (totalWorkouts == 0) {
-                  totalWorkouts = 4;
-                }
-
-                return Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: colorScheme.surface,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'This Week’s Stats',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
-                            ),
-                      ),
-                      const SizedBox(height: 16),
-                      _buildStatsRow(context, 'Completed', completedWorkouts.toDouble(), totalWorkouts.toDouble(), colorScheme.primary),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Total Duration',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurface.withOpacity(0.65),
-                            ),
-                      ),
-                      Text(
-                        '${(completedDuration / 60).toStringAsFixed(1)} hrs',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
-                            ),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Est. Calories Burned',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurface.withOpacity(0.65),
-                            ),
-                      ),
-                      Text(
-                        '${(completedDuration * 8)}', // 8 calories per minute average
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.primary,
-                            ),
-                      ),
-                    ],
-                  ),
-                );
-              }
-            ),
-            const SizedBox(height: 30),
-          ],
-        ),
-       ),
-      ),
-    );
-  }
-
-  Widget _buildWorkoutStat(BuildContext context, String label, String value) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurface.withOpacity(0.65),
-                  ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              value,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurface,
-                  ),
             ),
           ),
         ],
@@ -601,57 +166,169 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
     );
   }
 
-  Widget _buildStatsRow(BuildContext context, String label, double current, double target, Color accent) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return TweenAnimationBuilder<double>(
-      tween: Tween<double>(begin: 0.0, end: current),
-      duration: const Duration(milliseconds: 600),
-      curve: Curves.easeOutCubic,
-      builder: (context, animValue, child) {
-        final currentProgress = target > 0 ? (animValue / target) : 0.0;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  label,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurface.withOpacity(0.65),
-                      ),
-                ),
-                Text(
-                  '${animValue.toInt()} / ${target.toInt()}',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.onSurface,
-                      ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              height: 8,
-              alignment: Alignment.centerLeft,
-              decoration: BoxDecoration(
-                color: colorScheme.outline.withOpacity(0.18),
-                borderRadius: BorderRadius.circular(99),
-              ),
-              child: FractionallySizedBox(
-                widthFactor: currentProgress.clamp(0.0, 1.0),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: accent,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-              ),
-            ),
-          ],
+  Widget _buildHeader(BuildContext context, ColorScheme colorScheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Workout Plans', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Text(
+          'Your AI-powered personalized training program',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: colorScheme.onSurface.withValues(alpha: 0.70),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildScannerButton(BuildContext context, ColorScheme colorScheme) {
+    return ElevatedButton.icon(
+      onPressed: () {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) => const MachineClassifierSheet(),
         );
       },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: colorScheme.primaryContainer,
+        foregroundColor: colorScheme.onPrimaryContainer,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        elevation: 0,
+      ),
+      icon: const Icon(Icons.document_scanner_outlined),
+      label: const Text('Identify Gym Machine', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  Widget _buildWeekSplit(BuildContext context, Map<String, WorkoutDay> weeklySchedule, ColorScheme colorScheme, ProgressProvider progressProvider, Function getWeekdayName, Function getShortWeekday) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('This Week’s Split', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        const SizedBox(height: 16),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          controller: _scrollController,
+          child: Row(
+            children: [
+              for (var i = 0; i < 7; i++)
+                Builder(builder: (context) {
+                  final startOfWeek = DateTime.now().subtract(Duration(days: DateTime.now().weekday - 1));
+                  final dayDate = startOfWeek.add(Duration(days: i));
+                  final dayName = getWeekdayName(dayDate);
+                  final isSelected = dayDate.year == _selectedDate.year && dayDate.month == _selectedDate.month && dayDate.day == _selectedDate.day;
+                  final wDay = weeklySchedule[dayName];
+                  final isRest = wDay == null || wDay.exercises == null || wDay.exercises!.isEmpty;
+                  final isDone = isRest || progressProvider.isWorkoutCompleted((wDay.session ?? 'Workout').hashCode);
+
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedDate = dayDate),
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: Container(
+                        width: 92,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: isSelected ? colorScheme.primary.withValues(alpha: 0.12) : colorScheme.surface,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: isSelected ? colorScheme.primary : colorScheme.outline),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(getShortWeekday(dayDate), style: const TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            Icon(isDone ? Icons.check_circle : Icons.circle_outlined, size: 16, color: colorScheme.primary),
+                            Text(isRest ? 'Rest' : 'Workout', style: const TextStyle(fontSize: 10)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWorkoutList(BuildContext context, List<WorkoutDay> workouts, dynamic currentPlan, ColorScheme colorScheme, ProgressProvider progressProvider) {
+    if (workouts.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(40),
+        decoration: BoxDecoration(color: colorScheme.surface, borderRadius: BorderRadius.circular(24), border: Border.all(color: colorScheme.outline)),
+        child: Column(
+          children: [
+            Icon(Icons.fitness_center, size: 48, color: colorScheme.primary.withValues(alpha: 0.5)),
+            const SizedBox(height: 16),
+            Text(currentPlan == null ? 'No Schedule' : 'Rest Day', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const SizedBox(height: 12),
+            Text(currentPlan == null ? 'Generate a plan to begin.' : 'Enjoy your recovery day!', textAlign: TextAlign.center),
+            if (currentPlan == null) ...[
+              const SizedBox(height: 24),
+              ElevatedButton(onPressed: _isGenerating ? null : _generatePlan, child: const Text('Generate AI Plan')),
+            ]
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: workouts.map((w) {
+        final workoutId = (w.session ?? 'Workout').hashCode;
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(color: colorScheme.surface, borderRadius: BorderRadius.circular(24), border: Border.all(color: colorScheme.outline)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: Text(w.session ?? 'Workout', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
+                  Checkbox(value: progressProvider.isWorkoutCompleted(workoutId), onChanged: (v) => progressProvider.toggleWorkout(workoutId, v ?? false)),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text('Focus: ${w.focus ?? 'General'}', style: TextStyle(color: colorScheme.primary, fontWeight: FontWeight.w600)),
+              const Divider(height: 32),
+              ... (w.exercises ?? []).map((e) => ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(e.name ?? 'Exercise', style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text('${e.sets} sets x ${e.reps} reps'),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+              )),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildStatsCard(BuildContext context, WorkoutProvider wp, ProgressProvider progress, ColorScheme colorScheme) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(color: colorScheme.surface, borderRadius: BorderRadius.circular(24), border: Border.all(color: colorScheme.outline)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('This Week’s Stats', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Workouts Done'),
+              Text('${progress.completedWorkoutsCount}', style: const TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          LinearProgressIndicator(value: 0.5, backgroundColor: colorScheme.primary.withValues(alpha: 0.1), color: colorScheme.primary, minHeight: 8, borderRadius: BorderRadius.circular(9)),
+        ],
+      ),
     );
   }
 }

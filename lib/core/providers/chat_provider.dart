@@ -75,6 +75,11 @@ class ChatProvider extends ChangeNotifier {
         } else {
           _messages.add(ChatMessage(text: 'Sorry, I did not understand that.', isUser: false));
         }
+      } else if (response.statusCode == 503 || response.statusCode == 502) {
+        _messages.add(ChatMessage(
+          text: 'The AI server is currently waking up. Please wait about 30 seconds and try again.', 
+          isUser: false
+        ));
       } else {
         _messages.add(ChatMessage(text: 'Error: Failed to get response from server.', isUser: false));
       }

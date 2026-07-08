@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../../core/providers/providers.dart';
-import '../../../../core/models/models.dart';
-import '../../../../core/utils/ui_helpers.dart';
-import '../../../../core/widgets/bonyaan_logo.dart';
+import 'package:bonyaan_app/features/auth/presentation/providers/auth_provider.dart';
+import 'package:bonyaan_app/core/providers/providers.dart';
+import 'package:bonyaan_app/core/models/models.dart';
+import 'package:bonyaan_app/core/utils/ui_helpers.dart';
 import '../widgets/metric_card.dart';
 
 class HomeTab extends StatefulWidget {
   final void Function(int)? onNavigate;
+  final void Function(int)? onJump;
 
-  const HomeTab({super.key, this.onNavigate});
+  const HomeTab({super.key, this.onNavigate, this.onJump});
 
   @override
   State<HomeTab> createState() => _HomeTabState();
@@ -32,11 +32,18 @@ class _HomeTabState extends State<HomeTab> {
     final dietProvider = context.read<DietPlanProvider>();
     final workoutProvider = context.read<WorkoutProvider>();
 
+    // Load weekly plans first as it's the most reliable and provides fallback for today
+    if (isRefresh || dietProvider.currentPlan == null) {
+      await dietProvider.fetchWeeklyPlans();
+    }
+    
     final futures = <Future<void>>[];
     
     if (isRefresh || profileProvider.healthMetrics == null) {
       futures.add(profileProvider.fetchMyHealthProfile());
     }
+    
+    // These might fail but we can fall back to data from fetchWeeklyPlans
     if (isRefresh || dietProvider.todayPlan == null) {
       futures.add(dietProvider.fetchTodayPlan());
     }
@@ -45,11 +52,7 @@ class _HomeTabState extends State<HomeTab> {
     }
     
     if (futures.isNotEmpty) {
-      await Future.wait(futures);
-    }
-
-    if (isRefresh || dietProvider.currentPlan == null || (dietProvider.currentPlan?.days?.isEmpty ?? true)) {
-      await dietProvider.fetchWeeklyPlans();
+      await Future.wait(futures.map((f) => f.catchError((_) {})));
     }
   }
 
@@ -67,26 +70,44 @@ class _HomeTabState extends State<HomeTab> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    // Error State
-    if (profileProvider.errorMessage != null || 
+    // Error State - Only show if we have no data at all to display
+    final hasNoData = profileProvider.healthMetrics == null && 
+                      dietProvider.currentPlan == null && 
+                      workoutProvider.currentPlan == null;
+
+    if (hasNoData && (profileProvider.errorMessage != null || 
         dietProvider.errorMessage != null || 
-        workoutProvider.errorMessage != null) {
+        workoutProvider.errorMessage != null)) {
       final error = profileProvider.errorMessage ?? 
                     dietProvider.errorMessage ?? 
                     workoutProvider.errorMessage;
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 48, color: colorScheme.error),
-            const SizedBox(height: 16),
-            Text(error ?? 'An error occurred', textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => _loadData(true),
-              child: const Text('Retry'),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 48, color: colorScheme.error),
+              const SizedBox(height: 16),
+              Text(
+                'API Error',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(error ?? 'An error occurred', textAlign: TextAlign.center),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => _loadData(true),
+                child: const Text('Retry'),
+              ),
+              TextButton(
+                onPressed: () {
+                  widget.onNavigate?.call(4); // Navigate to Settings
+                },
+                child: const Text('Check Backend URL in Settings'),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -99,6 +120,8 @@ class _HomeTabState extends State<HomeTab> {
     final metrics = profileProvider.healthMetrics;
     
     final todayWeekday = DateTime.now().weekday;
+    final todayWeekdayName = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][todayWeekday - 1];
+
     DayPlan? activeTodayPlan = dietProvider.todayPlan;
     if (dietProvider.currentPlan != null && (dietProvider.currentPlan!.days?.isNotEmpty ?? false)) {
       final idx = dietProvider.currentPlan!.days!.indexWhere((dp) => dp.dayOfWeek == todayWeekday);
@@ -106,6 +129,18 @@ class _HomeTabState extends State<HomeTab> {
         activeTodayPlan = dietProvider.currentPlan!.days![idx];
       }
     }
+
+    WorkoutDay? activeTodayWorkout = workoutProvider.todayWorkout != null ? WorkoutDay(
+      session: workoutProvider.todayWorkout!.session,
+      focus: workoutProvider.todayWorkout!.focus,
+      exercises: workoutProvider.todayWorkout!.exercises,
+    ) : null;
+
+    if (activeTodayWorkout == null && workoutProvider.currentPlan?.weeklySchedule != null) {
+      activeTodayWorkout = workoutProvider.currentPlan!.weeklySchedule![todayWeekdayName];
+    }
+    
+    final bool isRestDay = activeTodayWorkout == null || (activeTodayWorkout.exercises == null || activeTodayWorkout.exercises!.isEmpty);
 
     // Goals from health profile and diet plan
     final int caloriesGoal = activeTodayPlan?.targetCalories?.toInt() ?? metrics?.dailyCalorieTarget ?? 2200;
@@ -115,10 +150,11 @@ class _HomeTabState extends State<HomeTab> {
     int caloriesCurrent = 0;
     int proteinCurrent = 0;
 
-    if (activeTodayPlan?.meals != null && activeTodayPlan!.meals!.isNotEmpty) {
-      int mealCount = activeTodayPlan!.meals!.length;
-      for (final meal in activeTodayPlan!.meals!) {
-        final d = activeTodayPlan!.dayOfWeek ?? 0;
+    if (activeTodayPlan != null && activeTodayPlan.meals != null && activeTodayPlan.meals!.isNotEmpty) {
+      final mealsList = activeTodayPlan.meals!;
+      int mealCount = mealsList.length;
+      for (final meal in mealsList) {
+        final d = activeTodayPlan.dayOfWeek ?? 0;
         final mId = meal.id ?? meal.name.hashCode;
         final uniqueId = d * 100000 + (mId.abs() % 100000);
         if (progressProvider.isMealCompleted(uniqueId)) {
@@ -135,19 +171,59 @@ class _HomeTabState extends State<HomeTab> {
           SliverSafeArea(
             bottom: false,
             sliver: SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 48, 16, 24), // Increased top padding
               sliver: SliverToBoxAdapter(
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Text(
-                      'Good morning, $greetingName!',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.onSurface,
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min, // Ensure text block is compact
+                      children: [
+                        Text(
+                          'Good morning,',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: colorScheme.onSurface.withValues(alpha: 0.7),
+                            height: 1.1,
+                          ),
+                        ),
+                        Text(
+                          '$greetingName!',
+                          style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color: colorScheme.onSurface,
+                            height: 1.1, // Tighten line height for better perceived centering
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF268FB1), // Matches Nav Bar color
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.3 : 0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                        border: Border.all(color: Colors.black, width: 0.5), // Subtle border for the icon as well
+                      ),
+                      child: IconButton(
+                        onPressed: () {
+                          if (widget.onJump != null) {
+                            widget.onJump!(3);
+                          } else {
+                            widget.onNavigate?.call(3);
+                          }
+                        }, // 3 is the index of ProfilePage in _tabs
+                        icon: const Icon(Icons.person_rounded, color: Colors.white, size: 26),
+                        padding: const EdgeInsets.all(10), // Reduced slightly to help with alignment feel
+                        constraints: const BoxConstraints(),
                       ),
                     ),
-                    const BonyaanLogo.small(),
                   ],
                 ),
               ),
@@ -171,6 +247,7 @@ class _HomeTabState extends State<HomeTab> {
                     icon: Icons.local_fire_department,
                     variant: MetricVariant.nutrition,
                     progress: caloriesCurrent / caloriesGoal * 100,
+                    customColor: const Color(0xFFF09033), // Warm Orange/Amber (fits nutrition/energy)
                   ),
                   MetricCard(
                     title: 'Protein',
@@ -179,9 +256,17 @@ class _HomeTabState extends State<HomeTab> {
                     icon: Icons.restaurant,
                     variant: MetricVariant.health,
                     progress: proteinCurrent / proteinGoal * 100,
+                    customColor: colorScheme.tertiary, // Dimmed in dark mode
                   ),
                 ],
               ),
+            ),
+          ),
+          
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            sliver: SliverToBoxAdapter(
+              child: _buildHealthScoreCard(context, 'Overall Health Score', (profileProvider.healthMetrics?.bmi != null ? (100 - (profileProvider.healthMetrics!.bmi! - 22).abs() * 2).toInt() : 85), colorScheme),
             ),
           ),
 
@@ -198,6 +283,7 @@ class _HomeTabState extends State<HomeTab> {
                       color: colorScheme.onSurface,
                     ),
                   ),
+                  const SizedBox(height: 16), // Added whitespace under the title
                   (() {
                     int totalMeals = 0;
                     int completedMeals = 0;
@@ -269,16 +355,11 @@ class _HomeTabState extends State<HomeTab> {
                   ),
                   const SizedBox(height: 14),
                   (() {
-                    // Extract today's workout from the weekly schedule
-                    final todayName = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][DateTime.now().weekday - 1];
-                    final todayWorkout = workoutProvider.currentPlan?.weeklySchedule?[todayName];
-                    final isRestDay = todayWorkout == null || todayWorkout.session == null || todayWorkout.session!.toLowerCase().contains('rest') || (todayWorkout.exercises == null || todayWorkout.exercises!.isEmpty);
-                    
                     String workoutTitle = 'Rest Day';
                     String workoutSubtitle = 'No workout today';
                     
                     if (!isRestDay) {
-                      final sessionName = todayWorkout.session ?? 'Workout Session';
+                      final sessionName = activeTodayWorkout?.session ?? 'Workout Session';
                       if (progressProvider.isWorkoutCompleted(sessionName.hashCode)) {
                         workoutTitle = 'Workout Complete!';
                         workoutSubtitle = 'Great job today';
@@ -331,8 +412,6 @@ class _HomeTabState extends State<HomeTab> {
                       ],
                     );
                   })(),
-                  const SizedBox(height: 24),
-                  _buildHealthScoreCard(context, 'Overall Health Score', (profileProvider.healthMetrics?.bmi != null ? (100 - (profileProvider.healthMetrics!.bmi! - 22).abs() * 2).toInt() : 85), colorScheme),
                   const SizedBox(height: 30),
                 ],
               ),
@@ -350,9 +429,14 @@ class _HomeTabState extends State<HomeTab> {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
+        color: Theme.of(context).brightness == Brightness.dark
+            ? colorScheme.surfaceContainerHighest
+            : colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
+        border: Border.all(
+          color: colorScheme.outline.withValues(alpha: 0.5),
+          width: 1.0,
+        ),
       ),
       child: TweenAnimationBuilder<double>(
         tween: Tween<double>(begin: 0.0, end: current),
@@ -374,9 +458,9 @@ class _HomeTabState extends State<HomeTab> {
                   ),
                   Text(
                     '${animValue.toInt()} / ${target.toInt()}',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
+                      color: colorScheme.onSurface.withOpacity(0.5),
                     ),
                   ),
                 ],
@@ -384,10 +468,12 @@ class _HomeTabState extends State<HomeTab> {
               const SizedBox(height: 12),
               Container(
                 width: double.infinity,
-                height: 10,
+                height: 12,
                 alignment: Alignment.centerLeft,
                 decoration: BoxDecoration(
-                  color: colorScheme.outline.withOpacity(0.18),
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withOpacity(0.12)
+                      : Colors.black.withOpacity(0.08), // Grey visible track
                   borderRadius: BorderRadius.circular(99),
                 ),
                 child: FractionallySizedBox(
@@ -413,7 +499,11 @@ class _HomeTabState extends State<HomeTab> {
     
     void handleTap() {
       if (navigateIndex != null) {
-        widget.onNavigate?.call(navigateIndex);
+        if (widget.onJump != null) {
+          widget.onJump!(navigateIndex);
+        } else {
+          widget.onNavigate?.call(navigateIndex);
+        }
       } else {
         showComingSoonSheet(context, title);
       }
@@ -428,9 +518,14 @@ class _HomeTabState extends State<HomeTab> {
           width: double.infinity,
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: colorScheme.surface,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? colorScheme.surfaceContainerHighest
+                : colorScheme.surface,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
+            border: Border.all(
+              color: colorScheme.outline.withValues(alpha: 0.5),
+              width: 1.0,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -479,56 +574,110 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   Widget _buildHealthScoreCard(BuildContext context, String title, int score, ColorScheme colorScheme) {
+    String status;
+    IconData statusIcon;
+    
+    if (score >= 90) {
+      status = 'Excellent';
+      statusIcon = Icons.stars_rounded;
+    } else if (score >= 70) {
+      status = 'Good';
+      statusIcon = Icons.check_circle_rounded;
+    } else {
+      status = 'Needs Focus';
+      statusIcon = Icons.info_outline_rounded;
+    }
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Theme.of(context).colorScheme.outline.withOpacity(0.16)),
+        color: colorScheme.secondary,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Theme.of(context).brightness == Brightness.dark 
+              ? const Color(0xFF268FB1) 
+              : Colors.black, 
+          width: 1
+        ), // 1px stroke (Blue 0xFF268FB1 in dark mode, black in light mode)
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 18),
-          Stack(
-            alignment: Alignment.center,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              SizedBox(
-                width: 140,
-                height: 140,
-                child: CircularProgressIndicator(
-                  value: score / 100,
-                  color: colorScheme.primary,
-                  backgroundColor: colorScheme.outline.withOpacity(0.16),
-                  strokeWidth: 12,
-                ),
-              ),
               Column(
-                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '$score',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    'Health Score',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurface.withOpacity(0.72),
-                    ),
+                  Row(
+                    children: [
+                      Icon(statusIcon, color: Colors.white.withOpacity(0.9), size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        status,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.9),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
+              ),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: Text(
+                  '$score',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          // Unique horizontal health bar
+          Stack(
+            children: [
+              Container(
+                height: 12,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.2), // Visible grey background
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0, end: score / 100),
+                duration: const Duration(milliseconds: 1000),
+                curve: Curves.easeOutBack,
+                builder: (context, value, child) {
+                  return FractionallySizedBox(
+                    widthFactor: value,
+                    child: Container(
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
           ),

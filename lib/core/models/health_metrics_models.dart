@@ -54,31 +54,45 @@ class HealthMetrics {
 
   factory HealthMetrics.fromJson(Map<String, dynamic> json) {
     // Safely unwrap 'data' key if it exists
-    final data = json.containsKey('data') && json['data'] is Map<String, dynamic>
-        ? json['data'] as Map<String, dynamic>
-        : json;
+    final data = json.containsKey('data') && json['data'] is Map ? Map<String, dynamic>.from(json['data'] as Map) : json;
 
     return HealthMetrics(
-      id: data['id'] as int?,
-      age: data['age'] as int?,
-      weightKg: (data['weightKg'] as num?)?.toDouble(),
-      heightCm: (data['heightCm'] as num?)?.toDouble(),
-      muscleMassKg: (data['muscleMassKg'] as num?)?.toDouble(),
-      fatPercentage: (data['fatPercentage'] as num?)?.toDouble(),
+      id: _toInt(data['id']),
+      age: _toInt(data['age']),
+      weightKg: _toDouble(data['weightKg'] ?? data['weight_kg']),
+      heightCm: _toDouble(data['heightCm'] ?? data['height_cm']),
+      muscleMassKg: _toDouble(data['muscleMassKg'] ?? data['muscle_mass_kg']),
+      fatPercentage: _toDouble(data['fatPercentage'] ?? data['fat_percentage']),
       gender: _parseGender(data['gender']),
-      activityLevel: _parseActivityLevel(data['activityLevel']),
-      medicalNotes: data['medicalNotes'] as String?,
-      dietType: _parseDietType(data['dietType']),
-      dietGoal: _parseDietGoal(data['dietGoal']),
-      bmi: (data['bmi'] as num?)?.toDouble(),
-      bmiCategory: data['bmiCategory'] as String?,
-      tdee: (data['tdee'] as num?)?.toInt(),
-      fatMass: (data['fatMass'] as num?)?.toDouble(),
-      leanMass: (data['leanMass'] as num?)?.toDouble(),
-      bodyFatCategory: data['bodyFatCategory'] as String?,
-      targetWeightKg: (data['targetWeightKg'] as num?)?.toDouble(),
-      dailyCalorieTarget: (data['dailyCalorieTarget'] as num?)?.toInt(),
+      activityLevel: _parseActivityLevel(data['activityLevel'] ?? data['activity_level']),
+      medicalNotes: (data['medicalNotes'] ?? data['medical_notes'])?.toString(),
+      dietType: _parseDietType(data['dietType'] ?? data['diet_type']),
+      dietGoal: _parseDietGoal(data['dietGoal'] ?? data['diet_goal']),
+      bmi: _toDouble(data['bmi']),
+      bmiCategory: (data['bmiCategory'] ?? data['bmi_category'])?.toString(),
+      tdee: _toInt(data['tdee']),
+      fatMass: _toDouble(data['fatMass'] ?? data['fat_mass']),
+      leanMass: _toDouble(data['leanMass'] ?? data['lean_mass']),
+      bodyFatCategory: (data['bodyFatCategory'] ?? data['body_fat_category'])?.toString(),
+      targetWeightKg: _toDouble(data['targetWeightKg'] ?? data['target_weight_kg']),
+      dailyCalorieTarget: _toInt(data['dailyCalorieTarget'] ?? data['daily_calorie_target']),
     );
+  }
+
+  static int? _toInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  static double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
   }
 
   Map<String, dynamic> toJson() {

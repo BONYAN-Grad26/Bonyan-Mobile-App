@@ -1,4 +1,4 @@
-/// Core HTTP API Client with JWT token management and error handling
+// Core HTTP API Client with JWT token management and error handling
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -46,6 +46,9 @@ class ApiClient {
     final headers = <String, String>{
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      'User-Agent': 'BonyaanApp/1.0',
+      'Bypass-Tunnel-Reminder': 'true', 
+      'X-Tunnel-Skip-GUI': 'true',
     };
 
     final accessToken = await tokenStorage.getAccessToken();
@@ -57,10 +60,6 @@ class ApiClient {
       headers.addAll(additionalHeaders);
     }
 
-    print('--- ApiClient Request Headers ---');
-    print('Authorization: ${headers['Authorization'] ?? 'NONE'}');
-    print('---------------------------------');
-
     return headers;
   }
 
@@ -68,7 +67,7 @@ class ApiClient {
     if (body.isEmpty) return defaultMessage;
     try {
       final decoded = jsonDecode(body);
-      if (decoded is Map<String, dynamic>) {
+      if (decoded is Map) {
         final msg = decoded['message']?.toString();
         if (msg != null && msg.isNotEmpty) {
           // If the message is a massive stack trace or java exception, fallback to generic
@@ -113,7 +112,7 @@ class ApiClient {
       // Not found
       if (statusCode == 404) {
         throw NotFoundException(
-          message: _extractErrorMessage(response.body, 'Resource not found.'),
+          message: 'Resource not found: ${response.request?.url}',
           originalError: response.body,
         );
       }
@@ -122,13 +121,16 @@ class ApiClient {
       if (statusCode == 422 || statusCode == 400) {
         var errorData = <String, dynamic>{};
         try {
-          errorData = jsonDecode(response.body) as Map<String, dynamic>;
+          final decoded = jsonDecode(response.body);
+          if (decoded is Map) {
+            errorData = Map<String, dynamic>.from(decoded);
+          }
         } catch (_) {}
 
         final msg = _extractErrorMessage(response.body, 'Validation failed.');
         throw ValidationException(
           message: msg,
-          errors: errorData['errors'] as Map<String, dynamic>?,
+          errors: errorData['errors'] is Map ? Map<String, dynamic>.from(errorData['errors'] as Map) : null,
           originalError: response.body,
         );
       }

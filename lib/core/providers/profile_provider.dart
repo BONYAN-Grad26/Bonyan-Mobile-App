@@ -76,6 +76,11 @@ class ProfileProvider extends ChangeNotifier {
       _healthMetrics = await _healthProfileRepository.getMyHealthProfile();
       _isLoading = false;
       notifyListeners();
+    } on NotFoundException {
+      _healthMetrics = null;
+      _errorMessage = null;
+      _isLoading = false;
+      notifyListeners();
     } on ApiException catch (e) {
       _errorMessage = e.message;
       _isLoading = false;

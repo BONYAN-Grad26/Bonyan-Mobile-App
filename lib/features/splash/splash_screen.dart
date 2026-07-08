@@ -63,13 +63,13 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
 
-    _controller.forward();
-
-    // 3 seconds total splash duration before routing
-    Future.delayed(const Duration(milliseconds: 3000), () {
-      if (mounted) {
-        setState(() => _showChild = true);
-      }
+    _controller.forward().then((_) {
+      // Small delay after animation completes to let the resolved logo sit
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          setState(() => _showChild = true);
+        }
+      });
     });
   }
 
@@ -87,53 +87,62 @@ class _SplashScreenState extends State<SplashScreen>
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     // Uses native background colors for a seamless transition into the app
-    final bgColor = isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC);
+    final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFF7FFF7);
     final logoAsset = isDark 
         ? 'assets/images/logo_stacked_light.png' 
         : 'assets/images/logo_stacked_dark.png';
 
-    return Scaffold(
-      backgroundColor: bgColor,
-      body: Center(
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) {
-            // Optimization: Avoid ImageFiltered if blur is 0 to save performance
-            final blurValue = _blur.value;
-            
-            Widget logoWidget = Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 64),
-              child: Image.asset(
-                logoAsset,
-                width: 240,
-                fit: BoxFit.contain,
-              ),
-            );
+    return Stack(
+      children: [
+        // Load data in the background while animation plays
+        widget.child,
+        
+        Positioned.fill(
+          child: Scaffold(
+            backgroundColor: bgColor,
+            body: Center(
+              child: AnimatedBuilder(
+                animation: _controller,
+                builder: (context, child) {
+                  // Optimization: Avoid ImageFiltered if blur is 0 to save performance
+                  final blurValue = _blur.value;
+                  
+                  Widget logoWidget = Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 64),
+                    child: Image.asset(
+                      logoAsset,
+                      width: 240,
+                      fit: BoxFit.contain,
+                    ),
+                  );
 
-            if (blurValue > 0) {
-              logoWidget = ImageFiltered(
-                imageFilter: ImageFilter.blur(
-                  sigmaX: blurValue,
-                  sigmaY: blurValue,
-                  tileMode: TileMode.decal,
-                ),
-                child: logoWidget,
-              );
-            }
+                  if (blurValue > 0) {
+                    logoWidget = ImageFiltered(
+                      imageFilter: ImageFilter.blur(
+                        sigmaX: blurValue,
+                        sigmaY: blurValue,
+                        tileMode: TileMode.decal,
+                      ),
+                      child: logoWidget,
+                    );
+                  }
 
-            return Transform.translate(
-              offset: _slide.value,
-              child: Opacity(
-                opacity: _opacity.value,
-                child: Transform.scale(
-                  scale: _scale.value,
-                  child: logoWidget,
-                ),
+                  return Transform.translate(
+                    offset: _slide.value,
+                    child: Opacity(
+                      opacity: _opacity.value,
+                      child: Transform.scale(
+                        scale: _scale.value,
+                        child: logoWidget,
+                      ),
+                    ),
+                  );
+                },
               ),
-            );
-          },
+            ),
+          ),
         ),
-      ),
+      ],
     );
   }
 }

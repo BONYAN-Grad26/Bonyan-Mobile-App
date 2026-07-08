@@ -1,86 +1,86 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../../features/auth/presentation/providers/auth_provider.dart';
-import '../../../../core/providers/providers.dart';
-import '../../../../core/widgets/bonyaan_logo.dart';
+import 'package:bonyaan_app/features/auth/presentation/providers/auth_provider.dart';
+import 'package:bonyaan_app/core/providers/providers.dart';
 
-class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
+class SettingsPage extends StatefulWidget {
+  final VoidCallback? onBack;
 
+  const SettingsPage({super.key, this.onBack});
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final settings = Provider.of<SettingsProvider>(context);
 
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Settings',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Manage your preferences',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurface.withOpacity(0.70),
-                      ),
-                    ),
-                  ],
-                ),
-                const BonyaanLogo.small(),
-              ],
-            ),
-            _buildSectionTitle(context, 'Notifications'),
-            const SizedBox(height: 12),
-            _buildToggleRow(context, 'Meal Reminders', 'Get reminded to log your meals', settings.mealReminders, (v) => settings.setMealReminders(v)),
-            _buildToggleRow(context, 'Workout Alerts', 'Get notified when workouts are ready', settings.workoutAlerts, (v) => settings.setWorkoutAlerts(v)),
+    return Scaffold(
+      body: CustomScrollView(
+        slivers: [
+          SliverSafeArea(
+            bottom: false,
+            sliver: SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 40, 16, 20), // Added whitespace at the top
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  _buildTopBar(context, colorScheme),
+                  const SizedBox(height: 24),
+                  _buildSectionTitle(context, 'Notifications'),
+                  const SizedBox(height: 12),
+                  _buildToggleRow(context, 'Meal Reminders', 'Get reminded to log your meals', settings.mealReminders, (v) => settings.setMealReminders(v)),
+                  _buildToggleRow(context, 'Workout Alerts', 'Get notified when workouts are ready', settings.workoutAlerts, (v) => settings.setWorkoutAlerts(v)),
 
-            const SizedBox(height: 24),
-            _buildSectionTitle(context, 'Appearance'),
-            const SizedBox(height: 12),
-            _buildAppearanceOption(context),
-            const SizedBox(height: 24),
-            _buildSectionTitle(context, 'Account'),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  context.read<AuthProvider>().logout();
-                  Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: colorScheme.error.withOpacity(0.1),
-                  foregroundColor: colorScheme.error,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  minimumSize: const Size(0, 52),
-                ),
-                icon: const Icon(Icons.logout),
-                label: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 24),
+                  _buildSectionTitle(context, 'Appearance'),
+                  const SizedBox(height: 12),
+                  _buildAppearanceOption(context, settings),
+                  const SizedBox(height: 24),
+                  _buildSectionTitle(context, 'Account'),
+                  const SizedBox(height: 12),
+                  _buildSignOutButton(context, colorScheme),
+                  const SizedBox(height: 120), // Padding for floating nav bar
+                ]),
               ),
             ),
-            const SizedBox(height: 30),
-          ],
-        ),
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _buildTopBar(BuildContext context, ColorScheme colorScheme) {
+    return Row(
+      children: [
+        if (widget.onBack != null)
+          Padding(
+            padding: const EdgeInsets.only(right: 0), // Reduced whitespace
+            child: IconButton(
+              onPressed: widget.onBack,
+              icon: const Icon(Icons.arrow_back_ios_new_rounded),
+              color: colorScheme.onSurface,
+            ),
+          ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Settings',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18, // Smaller text
+                  color: colorScheme.onSurface,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -103,7 +103,7 @@ class SettingsPage extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
+        border: Border.all(color: colorScheme.outline, width: 1.0),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -112,50 +112,32 @@ class SettingsPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
+                Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
                 const SizedBox(height: 6),
-                Text(
-                  subtitle,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurface.withOpacity(0.65),
-                  ),
-                ),
+                Text(subtitle, style: TextStyle(color: colorScheme.onSurface.withOpacity(0.65), fontSize: 12)),
               ],
             ),
           ),
-          Checkbox(value: enabled, onChanged: (v) => onChanged(v ?? false)),
+          Switch(value: enabled, onChanged: onChanged),
         ],
       ),
     );
   }
 
-  Widget _buildAppearanceOption(BuildContext context) {
+  Widget _buildAppearanceOption(BuildContext context, SettingsProvider settings) {
     final colorScheme = Theme.of(context).colorScheme;
-    final settings = Provider.of<SettingsProvider>(context);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
+        border: Border.all(color: colorScheme.outline, width: 1.0),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Theme',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: colorScheme.onSurface,
-            ),
-          ),
+          const Text('Theme', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -171,33 +153,38 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-
   Widget _buildPill(BuildContext context, String label, bool selected, VoidCallback onTap) {
     final colorScheme = Theme.of(context).colorScheme;
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
             color: selected ? colorScheme.primary.withOpacity(0.12) : colorScheme.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: selected ? colorScheme.primary : colorScheme.outline.withOpacity(0.16),
-            ),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: selected ? colorScheme.primary : colorScheme.outline.withOpacity(0.3)),
           ),
-          child: Center(
-            child: Text(
-              label,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: selected ? colorScheme.primary : colorScheme.onSurface,
-              ),
-            ),
-          ),
+          child: Text(label, textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: selected ? colorScheme.primary : colorScheme.onSurface)),
         ),
       ),
+    );
+  }
+
+  Widget _buildSignOutButton(BuildContext context, ColorScheme colorScheme) {
+    return ElevatedButton.icon(
+      onPressed: () {
+        context.read<AuthProvider>().logout();
+        Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: colorScheme.error.withOpacity(0.1),
+        foregroundColor: colorScheme.error,
+        minimumSize: const Size.fromHeight(52),
+        elevation: 0,
+      ),
+      icon: const Icon(Icons.logout),
+      label: const Text('Sign Out', style: TextStyle(fontWeight: FontWeight.bold)),
     );
   }
 }

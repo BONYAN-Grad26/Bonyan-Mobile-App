@@ -89,6 +89,12 @@ class AuthRepository {
 
   String _mapDioError(DioException error) {
     final data = error.response?.data;
+    final url = error.requestOptions.path;
+    final statusCode = error.response?.statusCode;
+
+    if (statusCode == 404) {
+      return 'Endpoint not found (404): $url. Please check your backend URL and paths.';
+    }
 
     if (data is Map<String, dynamic>) {
       final message = data['message'] ?? data['error'] ?? data['details'];
