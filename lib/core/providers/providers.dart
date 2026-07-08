@@ -1,0 +1,12 @@
+export 'diet_plan_provider.dart';
+export 'workout_provider.dart';
+export 'profile_provider.dart';
+export 'ingredient_provider.dart';
+export 'tag_provider.dart';
+export 'allergy_provider.dart';
+export 'goal_provider.dart';
+export 'settings_provider.dart';
+export 'progress_provider.dart';
+export 'chat_provider.dart';
+export 'meal_suggester_provider.dart';
+export 'machine_classifier_provider.dart';
