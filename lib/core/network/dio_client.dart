@@ -10,7 +10,7 @@ class DioClient {
     BaseOptions(
       baseUrl: const String.fromEnvironment(
         'API_BASE_URL',
-        defaultValue: 'https://phosphate-support-duration.ngrok-free.dev',
+        defaultValue: 'https://20703738d10865.lhr.life/',
       ),
       connectTimeout: const Duration(seconds: 30),
       sendTimeout: const Duration(seconds: 90),

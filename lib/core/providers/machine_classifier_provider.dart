@@ -58,8 +58,8 @@ class MachineClassifierProvider extends ChangeNotifier {
         'https://fitness-part.onrender.com/predict',
         data: formData,
         options: Options(
-          sendTimeout: const Duration(seconds: 30),
-          receiveTimeout: const Duration(seconds: 30),
+          sendTimeout: const Duration(seconds: 180),
+          receiveTimeout: const Duration(seconds: 180),
         ),
       );
 

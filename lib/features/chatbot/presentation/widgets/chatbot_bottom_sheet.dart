@@ -260,6 +260,8 @@ class _ChatbotBottomSheetState extends State<ChatbotBottomSheet> {
                   child: TextField(
                     controller: _controller,
                     textInputAction: TextInputAction.send,
+                    minLines: 1,
+                    maxLines: 5,
                     onSubmitted: (_) => _sendMessage(),
                     decoration: InputDecoration(
                       hintText: 'Message AI Assistant...',

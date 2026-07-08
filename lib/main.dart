@@ -27,7 +27,7 @@ Future<void> main() async {
   final authProvider = AuthProvider(tokenStorage: tokenStorage);
   
   final apiClient = ApiClient(
-    baseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'https://phosphate-support-duration.ngrok-free.dev'),
+    baseUrl: const String.fromEnvironment('API_BASE_URL', defaultValue: 'https://20703738d10865.lhr.life/'),
     tokenStorage: tokenStorage,
     onUnauthorized: () {
       authProvider.logout();

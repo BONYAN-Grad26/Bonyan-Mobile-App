@@ -119,8 +119,12 @@ class _RegisterPageState extends State<RegisterPage> {
                                     labelText: 'First Name',
                                   ),
                                   validator: (value) {
-                                    if ((value ?? '').trim().isEmpty) {
+                                    final text = (value ?? '').trim();
+                                    if (text.isEmpty) {
                                       return 'Required';
+                                    }
+                                    if (text.length < 3 || text.length > 10) {
+                                      return 'Must be 3-10 characters';
                                     }
                                     return null;
                                   },
@@ -134,8 +138,12 @@ class _RegisterPageState extends State<RegisterPage> {
                                     labelText: 'Last Name',
                                   ),
                                   validator: (value) {
-                                    if ((value ?? '').trim().isEmpty) {
+                                    final text = (value ?? '').trim();
+                                    if (text.isEmpty) {
                                       return 'Required';
+                                    }
+                                    if (text.length < 3 || text.length > 10) {
+                                      return 'Must be 3-10 characters';
                                     }
                                     return null;
                                   },

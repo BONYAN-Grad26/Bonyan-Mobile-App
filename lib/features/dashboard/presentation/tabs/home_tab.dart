@@ -268,21 +268,69 @@ class _HomeTabState extends State<HomeTab> {
                     ),
                   ),
                   const SizedBox(height: 14),
-                  _buildUpcomingCard(
-                    context, 
-                    workoutProvider.todayWorkout?.exercises?.firstOrNull?.name ?? 'Rest Day', 
-                    workoutProvider.todayWorkout != null ? 'Today' : 'No workout today', 
-                    colorScheme.primary,
-                    navigateIndex: 2,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildUpcomingCard(
-                    context, 
-                    activeTodayPlan?.meals?.firstOrNull?.name ?? 'No Meals Planned', 
-                    activeTodayPlan != null ? 'Upcoming' : '', 
-                    colorScheme.secondary,
-                    navigateIndex: 1,
-                  ),
+                  (() {
+                    // Extract today's workout from the weekly schedule
+                    final todayName = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][DateTime.now().weekday - 1];
+                    final todayWorkout = workoutProvider.currentPlan?.weeklySchedule?[todayName];
+                    final isRestDay = todayWorkout == null || todayWorkout.session == null || todayWorkout.session!.toLowerCase().contains('rest') || (todayWorkout.exercises == null || todayWorkout.exercises!.isEmpty);
+                    
+                    String workoutTitle = 'Rest Day';
+                    String workoutSubtitle = 'No workout today';
+                    
+                    if (!isRestDay) {
+                      final sessionName = todayWorkout.session ?? 'Workout Session';
+                      if (progressProvider.isWorkoutCompleted(sessionName.hashCode)) {
+                        workoutTitle = 'Workout Complete!';
+                        workoutSubtitle = 'Great job today';
+                      } else {
+                        workoutTitle = sessionName;
+                        workoutSubtitle = 'Today\'s Session';
+                      }
+                    }
+
+                    // Find the next uncompleted meal
+                    String mealTitle = 'No Meals Planned';
+                    String mealSubtitle = '';
+                    if (activeTodayPlan != null && activeTodayPlan.meals != null && activeTodayPlan.meals!.isNotEmpty) {
+                      Meal? nextMeal;
+                      for (final meal in activeTodayPlan.meals!) {
+                        final d = activeTodayPlan.dayOfWeek ?? 0;
+                        final mId = meal.id ?? meal.name.hashCode;
+                        final uniqueId = d * 100000 + (mId.abs() % 100000);
+                        if (!progressProvider.isMealCompleted(uniqueId)) {
+                          nextMeal = meal;
+                          break;
+                        }
+                      }
+                      if (nextMeal != null) {
+                        mealTitle = nextMeal.name ?? 'Unnamed Meal';
+                        mealSubtitle = 'Upcoming • ${nextMeal.mealType ?? 'Meal'}';
+                      } else {
+                        mealTitle = 'All Meals Completed!';
+                        mealSubtitle = 'Great job today';
+                      }
+                    }
+
+                    return Column(
+                      children: [
+                        _buildUpcomingCard(
+                          context, 
+                          workoutTitle, 
+                          workoutSubtitle, 
+                          colorScheme.primary,
+                          navigateIndex: 2,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildUpcomingCard(
+                          context, 
+                          mealTitle, 
+                          mealSubtitle, 
+                          colorScheme.secondary,
+                          navigateIndex: 1,
+                        ),
+                      ],
+                    );
+                  })(),
                   const SizedBox(height: 24),
                   _buildHealthScoreCard(context, 'Overall Health Score', (profileProvider.healthMetrics?.bmi != null ? (100 - (profileProvider.healthMetrics!.bmi! - 22).abs() * 2).toInt() : 85), colorScheme),
                   const SizedBox(height: 30),
@@ -362,60 +410,70 @@ class _HomeTabState extends State<HomeTab> {
 
   Widget _buildUpcomingCard(BuildContext context, String title, String subtitle, Color accent, {int? navigateIndex}) {
     final colorScheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
+    
+    void handleTap() {
+      if (navigateIndex != null) {
+        widget.onNavigate?.call(navigateIndex);
+      } else {
+        showComingSoonSheet(context, title);
+      }
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: handleTap,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: colorScheme.onSurface,
-            ),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: colorScheme.outline.withOpacity(0.16)),
           ),
-          const SizedBox(height: 10),
-          Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.schedule, size: 16, color: colorScheme.onSurface.withOpacity(0.65)),
-              const SizedBox(width: 8),
               Text(
-                subtitle,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurface.withOpacity(0.72),
+                title,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Icon(Icons.schedule, size: 16, color: colorScheme.onSurface.withOpacity(0.65)),
+                  const SizedBox(width: 8),
+                  Text(
+                    subtitle,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurface.withOpacity(0.72),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: handleTap,
+                  icon: const Icon(Icons.arrow_forward),
+                  label: const Text('View'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: accent,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                if (navigateIndex != null) {
-                  widget.onNavigate?.call(navigateIndex);
-                } else {
-                  showComingSoonSheet(context, title);
-                }
-              },
-              icon: const Icon(Icons.arrow_forward),
-              label: const Text('View'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: accent,
-                foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

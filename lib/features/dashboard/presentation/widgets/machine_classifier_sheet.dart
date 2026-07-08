@@ -38,9 +38,12 @@ class _MachineClassifierSheetState extends State<MachineClassifierSheet> {
   }
 
   Future<void> _launchVideo(String url) async {
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    final uri = Uri.tryParse(url.trim());
+    if (uri != null && await canLaunchUrl(uri)) {
+      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!launched) {
+        await launchUrl(uri);
+      }
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

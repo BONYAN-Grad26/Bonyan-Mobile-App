@@ -16,8 +16,11 @@ class MetricsRepository {
     if (response == null) {
       return model;
     }
+    
+    final map = response as Map<String, dynamic>;
+    final data = map['data'] ?? map;
 
-    return HealthMetricModel.fromJson(response as Map<String, dynamic>);
+    return HealthMetricModel.fromJson(data as Map<String, dynamic>);
   }
 
   Future<HealthMetricModel?> getMyHealthProfile() async {
@@ -26,7 +29,9 @@ class MetricsRepository {
       if (response == null) {
         return null;
       }
-      return HealthMetricModel.fromJson(response as Map<String, dynamic>);
+      final map = response as Map<String, dynamic>;
+      final data = map['data'] ?? map;
+      return HealthMetricModel.fromJson(data as Map<String, dynamic>);
     } on NotFoundException {
       return null;
     }

@@ -20,13 +20,9 @@ class _MealSuggesterSheetState extends State<MealSuggesterSheet> {
   final List<String> _cuisines = [
     'No preference',
     'Egyptian',
-    'Middle Eastern',
-    'Mediterranean',
     'Italian',
     'Asian',
-    'Indian',
-    'Mexican',
-    'American'
+    'Hindi'
   ];
 
   final List<String> _mealTypes = ['Main meal', 'Snack'];
@@ -203,6 +199,20 @@ class _MealSuggesterSheetState extends State<MealSuggesterSheet> {
             const SizedBox(height: 8),
             Text(meal.description, style: Theme.of(context).textTheme.bodyMedium),
             const Divider(height: 32),
+            if (meal.detectedIngredients.isNotEmpty) ...[
+              Text('Detected Ingredients:', style: const TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: meal.detectedIngredients.map((i) => Chip(
+                  label: Text(i),
+                  backgroundColor: colorScheme.primaryContainer,
+                  labelStyle: TextStyle(color: colorScheme.onPrimaryContainer),
+                )).toList(),
+              ),
+              const Divider(height: 32),
+            ],
             Text('Calories: ${meal.calories} kcal', style: const TextStyle(fontWeight: FontWeight.bold)),
             Text('Macros: Protein ${meal.protein}g | Carbs ${meal.carbs}g | Fat ${meal.fat}g'),
             const Divider(height: 32),
