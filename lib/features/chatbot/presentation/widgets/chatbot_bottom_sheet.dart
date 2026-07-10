@@ -14,6 +14,24 @@ class ChatbotBottomSheet extends StatefulWidget {
 class _ChatbotBottomSheetState extends State<ChatbotBottomSheet> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  TextDirection _textDirection = TextDirection.ltr;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_handleTextChange);
+  }
+
+  void _handleTextChange() {
+    final text = _controller.text;
+    final bool isArabic = RegExp(r'[\u0600-\u06FF]').hasMatch(text);
+    final newDirection = isArabic ? TextDirection.rtl : TextDirection.ltr;
+    if (_textDirection != newDirection) {
+      setState(() {
+        _textDirection = newDirection;
+      });
+    }
+  }
 
   void _sendMessage() {
     final text = _controller.text;
@@ -39,6 +57,7 @@ class _ChatbotBottomSheetState extends State<ChatbotBottomSheet> {
 
   @override
   void dispose() {
+    _controller.removeListener(_handleTextChange);
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -260,6 +279,8 @@ class _ChatbotBottomSheetState extends State<ChatbotBottomSheet> {
                   child: TextField(
                     controller: _controller,
                     textInputAction: TextInputAction.send,
+                    textDirection: _textDirection,
+                    textAlign: _textDirection == TextDirection.rtl ? TextAlign.right : TextAlign.left,
                     onSubmitted: (_) => _sendMessage(),
                     decoration: InputDecoration(
                       hintText: 'Message AI Assistant...',

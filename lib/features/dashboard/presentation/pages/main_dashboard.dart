@@ -1,7 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:provider/provider.dart';
 
 import '../pages/meals_tab.dart';
 import '../pages/profile_page.dart';
@@ -9,7 +8,6 @@ import '../pages/settings_page.dart';
 import '../pages/workouts_tab.dart';
 import '../tabs/home_tab.dart';
 import '../../../chatbot/presentation/pages/chat_page.dart';
-import '../../../../core/providers/providers.dart';
 
 class MainDashboard extends StatefulWidget {
   const MainDashboard({super.key});
@@ -22,14 +20,14 @@ class _MainDashboardState extends State<MainDashboard> {
   int _currentIndex = 0;
   int _lastMainPageIndex = 0; // Tracks the last visited main tab (Dashboard, Meals, or Workouts)
   bool _isVisible = true;
-  late final PageController _pageController;
+  bool _shouldAnimate = true;
+  bool _isReverse = false;
 
   late final List<Widget> _tabs;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: _currentIndex);
     _tabs = [
       HomeTab(
         onNavigate: (index) {
@@ -41,11 +39,7 @@ class _MainDashboardState extends State<MainDashboard> {
       ),
       const MealsTab(),
       const WorkoutsTab(),
-      ChatPage(
-        onBack: () {
-          _animateToPage(_lastMainPageIndex); // Return to last main page with animation
-        },
-      ),
+      const SizedBox.shrink(),
       ProfilePage(
         onBack: () {
           _jumpToPage(_lastMainPageIndex); // Return to last main page instantly
@@ -64,11 +58,14 @@ class _MainDashboardState extends State<MainDashboard> {
 
   @override
   void dispose() {
-    _pageController.dispose();
     super.dispose();
   }
 
   void _animateToPage(int index) {
+    if (index == 3) {
+      _pushChatPage();
+      return;
+    }
     if (_currentIndex == index) return;
     
     // Update last main page index if we are navigating to Dashboard, Meals, or Workouts
@@ -77,17 +74,18 @@ class _MainDashboardState extends State<MainDashboard> {
     }
     
     setState(() {
+      _isReverse = index < _currentIndex;
+      _shouldAnimate = true;
       _currentIndex = index;
       _isVisible = true;
     });
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOutCubic,
-    );
   }
 
   void _jumpToPage(int index) {
+    if (index == 3) {
+      _pushChatPage();
+      return;
+    }
     if (_currentIndex == index) return;
     
     // Update last main page index if we are navigating to Dashboard, Meals, or Workouts
@@ -96,20 +94,41 @@ class _MainDashboardState extends State<MainDashboard> {
     }
 
     setState(() {
+      _isReverse = index < _currentIndex;
+      _shouldAnimate = false;
       _currentIndex = index;
       _isVisible = true;
     });
-    _pageController.jumpToPage(index);
+  }
+
+  void _pushChatPage() {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => ChatPage(
+          onBack: () => Navigator.pop(context),
+        ),
+        transitionDuration: const Duration(milliseconds: 300),
+        reverseTransitionDuration: const Duration(milliseconds: 300),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          const begin = Offset(1.0, 0.0);
+          const end = Offset.zero;
+          const curve = Curves.easeInOutCubic;
+          var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+          return SlideTransition(
+            position: animation.drive(tween),
+            child: child,
+          );
+        },
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final chatProvider = context.watch<ChatProvider>();
-
     final navBarBgColor = const Color(0xFF268FB1); // Dimmed Ocean Blue
-    final navBarIconColor = Colors.white;
 
     return Scaffold(
       extendBody: true,
@@ -125,20 +144,34 @@ class _MainDashboardState extends State<MainDashboard> {
           }
           return true;
         },
-        child: PageView(
-          controller: _pageController,
-          physics: const NeverScrollableScrollPhysics(), // Disable swipe to avoid accidental page switches
-          children: _tabs,
-          onPageChanged: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
+        child: AnimatedSwitcher(
+          duration: _shouldAnimate ? const Duration(milliseconds: 300) : Duration.zero,
+          transitionBuilder: (Widget child, Animation<double> animation) {
+            if (!_shouldAnimate) return child;
+
+            final isIncoming = child.key == ValueKey<int>(_currentIndex);
+            final Offset begin = _isReverse
+                ? (isIncoming ? const Offset(-1.0, 0.0) : const Offset(1.0, 0.0))
+                : (isIncoming ? const Offset(1.0, 0.0) : const Offset(-1.0, 0.0));
+
+            return SlideTransition(
+              position: animation.drive(
+                Tween<Offset>(begin: begin, end: Offset.zero).chain(
+                  CurveTween(curve: Curves.easeInOutCubic),
+                ),
+              ),
+              child: child,
+            );
           },
+          child: KeyedSubtree(
+            key: ValueKey<int>(_currentIndex),
+            child: _tabs[_currentIndex],
+          ),
         ),
       ),
       bottomNavigationBar: AnimatedSlide(
         duration: const Duration(milliseconds: 300),
-        offset: (_isVisible && _currentIndex <= 2) ? Offset.zero : const Offset(0, 2),
+        offset: (_isVisible && (_currentIndex <= 2 || _currentIndex == 4)) ? Offset.zero : const Offset(0, 2),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
@@ -194,11 +227,10 @@ class _MainDashboardState extends State<MainDashboard> {
                       label: 'Workouts',
                     ),
                     _buildNavItem(
-                      index: 3,
-                      icon: Icons.chat_bubble_outline,
-                      selectedIcon: Icons.chat_bubble,
-                      label: 'AI Chat',
-                      badge: chatProvider.hasUnreadMessages,
+                      index: 4,
+                      icon: Icons.person_outline_rounded,
+                      selectedIcon: Icons.person_rounded,
+                      label: 'Profile',
                     ),
                   ],
                 ),
@@ -217,7 +249,7 @@ class _MainDashboardState extends State<MainDashboard> {
     required String label,
     bool badge = false,
   }) {
-    final isSelected = (_currentIndex > 2 ? (_currentIndex == 3 ? 3 : 0) : _currentIndex) == index;
+    final isSelected = (_currentIndex == 5 ? 4 : _currentIndex) == index;
 
     return Expanded(
       child: GestureDetector(
@@ -251,7 +283,7 @@ class _MainDashboardState extends State<MainDashboard> {
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 11, // Increased from 10
+                  fontSize: 10,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                   color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.5),
                 ),

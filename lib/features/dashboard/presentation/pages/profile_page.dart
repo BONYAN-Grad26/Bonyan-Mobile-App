@@ -88,28 +88,12 @@ class _ProfilePageState extends State<ProfilePage> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
-                  child: Row(
-                    children: [
-                      if (widget.onBack != null)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 0), // Reduced whitespace
-                          child: IconButton(
-                            onPressed: widget.onBack,
-                            icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                            color: colorScheme.onSurface,
-                          ),
+                  child: Text(
+                    'My Profile',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface,
                         ),
-                      Expanded(
-                        child: Text(
-                          'My Profile',
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18, // Smaller text
-                                color: colorScheme.onSurface,
-                              ),
-                        ),
-                      ),
-                    ],
                   ),
                 ),
                 if (widget.onNavigateToSettings != null)

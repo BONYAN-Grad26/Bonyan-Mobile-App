@@ -16,6 +16,7 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -41,36 +42,50 @@ class _LoginPageState extends State<LoginPage> {
     final colorScheme = Theme.of(context).colorScheme;
     final authState = context.watch<AuthProvider>();
     final isLoading = authState.status == AuthStatus.loading;
+    final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
+      resizeToAvoidBottomInset: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
-          // Background Gradient
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  const Color(0xFF268FB1).withValues(alpha: 0.8),
-                  colorScheme.surface,
-                ],
-                stops: const [0.0, 0.4],
+          // Background Gradient - Fixed Height for Static Look
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: screenHeight,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    const Color(0xFF268FB1).withValues(alpha: 0.8),
+                    Theme.of(context).scaffoldBackgroundColor,
+                  ],
+                  stops: const [0.0, 0.4],
+                ),
               ),
             ),
           ),
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                physics: const ClampingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 460),
                   child: Card(
+                    color: colorScheme.surface,
                     elevation: 4,
                     shadowColor: Colors.black.withValues(alpha: 0.1),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(28),
+                      side: BorderSide(
+                        color: colorScheme.outline.withValues(alpha: 0.6),
+                        width: 1.2,
+                      ),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(32),
@@ -80,8 +95,8 @@ class _LoginPageState extends State<LoginPage> {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const BonyaanLogo(width: 130),
-                            const SizedBox(height: 12),
+                            const BonyaanLogo(width: 85),
+                            const SizedBox(height: 28),
                             Text(
                               'Welcome Back',
                               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -94,7 +109,7 @@ class _LoginPageState extends State<LoginPage> {
                               'Sign in to continue your health journey',
                               textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                                    color: Colors.white,
                                   ),
                             ),
                             const SizedBox(height: 32),
@@ -122,12 +137,19 @@ class _LoginPageState extends State<LoginPage> {
                             const SizedBox(height: 20),
                             TextFormField(
                               controller: _passwordController,
-                              obscureText: true,
-                              decoration: const InputDecoration(
+                              obscureText: _obscurePassword,
+                              decoration: InputDecoration(
                                 labelText: 'Password',
                                 hintText: 'At least 8 characters',
-                                prefixIcon: Icon(Icons.lock_outline),
-                                border: OutlineInputBorder(),
+                                prefixIcon: const Icon(Icons.lock_outline),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                    size: 20,
+                                  ),
+                                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                ),
+                                border: const OutlineInputBorder(),
                               ),
                               validator: (value) {
                                 final password = value ?? '';
@@ -155,8 +177,8 @@ class _LoginPageState extends State<LoginPage> {
                                 child: Text(
                                   'Forgot Password?',
                                   style: TextStyle(
-                                    fontSize: 11,
-                                    color: colorScheme.onSurface.withValues(alpha: 0.5),
+                                    fontSize: 13,
+                                    color: colorScheme.onSurface.withValues(alpha: 0.6),
                                   ),
                                 ),
                               ),

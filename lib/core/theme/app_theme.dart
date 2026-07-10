@@ -48,6 +48,7 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,
+        hintStyle: TextStyle(color: _AppColors.textDark.withValues(alpha: 0.65)),
         floatingLabelStyle: WidgetStateTextStyle.resolveWith((states) {
           if (states.contains(WidgetState.error)) {
             return const TextStyle(color: _AppColors.error, fontWeight: FontWeight.bold);
@@ -147,6 +148,7 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: _AppColors.darkInputFill,
+        hintStyle: TextStyle(color: _AppColors.darkText.withValues(alpha: 0.55)),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: _AppColors.darkBorder),

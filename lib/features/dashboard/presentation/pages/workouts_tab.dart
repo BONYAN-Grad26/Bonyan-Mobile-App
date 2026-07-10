@@ -372,7 +372,17 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('Tasks Completed'),
-              Text('$completedTasks / $totalTasks', style: const TextStyle(fontWeight: FontWeight.bold)),
+              TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0, end: completedTasks.toDouble()),
+                duration: const Duration(milliseconds: 800),
+                curve: Curves.easeOutCubic,
+                builder: (context, animValue, child) {
+                  return Text(
+                    '${animValue.toInt()} / $totalTasks',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  );
+                },
+              ),
             ],
           ),
           const SizedBox(height: 8),

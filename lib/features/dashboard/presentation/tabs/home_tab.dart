@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -18,16 +19,28 @@ class HomeTab extends StatefulWidget {
 }
 
 class _HomeTabState extends State<HomeTab> {
+  String _randomGreeting = 'Hello';
 
   @override
   void initState() {
     super.initState();
+    _pickRandomGreeting();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
     });
   }
 
+  void _pickRandomGreeting() {
+    const greetings = ['Hello', 'Hi', 'Hey', 'Welcome', 'Greetings', 'Stay active', 'Welcome back'];
+    _randomGreeting = greetings[Random().nextInt(greetings.length)];
+  }
+
   Future<void> _loadData([bool isRefresh = false]) async {
+    if (isRefresh) {
+      setState(() {
+        _pickRandomGreeting();
+      });
+    }
     final profileProvider = context.read<ProfileProvider>();
     final dietProvider = context.read<DietPlanProvider>();
     final workoutProvider = context.read<WorkoutProvider>();
@@ -112,9 +125,9 @@ class _HomeTabState extends State<HomeTab> {
       );
     }
 
-    final userName = authProvider.currentUser?.firstName;
+    final userName = authProvider.currentUser?.firstName?.split(' ').first;
     final greetingName = (progressProvider.customFirstName.isNotEmpty 
-        ? progressProvider.customFirstName 
+        ? progressProvider.customFirstName.split(' ').first
         : ((userName == null || userName.isEmpty) ? 'User' : userName)).replaceAll('!', '');
 
     final metrics = profileProvider.healthMetrics;
@@ -167,20 +180,16 @@ class _HomeTabState extends State<HomeTab> {
     final hour = DateTime.now().hour;
     final String timeGreeting;
     final IconData greetingIcon;
-    final Color greetingColor;
 
     if (hour < 12) {
       timeGreeting = 'Good Morning';
       greetingIcon = Icons.wb_sunny_rounded;
-      greetingColor = const Color(0xFFF09033); // Morning Orange
     } else if (hour < 17) {
       timeGreeting = 'Good Afternoon';
       greetingIcon = Icons.wb_cloudy_rounded;
-      greetingColor = const Color(0xFF268FB1); // Afternoon Blue
     } else {
       timeGreeting = 'Good Evening';
       greetingIcon = Icons.nights_stay_rounded;
-      greetingColor = Colors.indigoAccent; // Evening Indigo
     }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -241,8 +250,8 @@ class _HomeTabState extends State<HomeTab> {
                             text: TextSpan(
                               children: [
                                 TextSpan(
-                                  text: 'Hello, ',
-                                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                  text: '$_randomGreeting, ',
+                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                     color: colorScheme.onSurface,
                                     fontWeight: FontWeight.w300,
                                     letterSpacing: -0.5,
@@ -250,7 +259,7 @@ class _HomeTabState extends State<HomeTab> {
                                 ),
                                 TextSpan(
                                   text: greetingName,
-                                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                     color: navBarBlue,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: -0.5,
@@ -262,30 +271,43 @@ class _HomeTabState extends State<HomeTab> {
                         ),
                       ],
                     ),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: navBarBlue, // Matches Nav Bar color
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                        border: Border.all(color: Colors.black, width: 0.5), // Subtle border for the icon as well
-                      ),
-                      child: IconButton(
-                        onPressed: () {
-                          if (widget.onJump != null) {
-                            widget.onJump!(4);
-                          } else {
-                            widget.onNavigate?.call(4);
-                          }
-                        }, // 4 is the index of ProfilePage in _tabs
-                        icon: const Icon(Icons.person_rounded, color: Colors.white, size: 26),
-                        padding: const EdgeInsets.all(10), // Reduced slightly to help with alignment feel
-                        constraints: const BoxConstraints(),
+                    GestureDetector(
+                      onTap: () {
+                        if (widget.onJump != null) {
+                          widget.onJump!(3);
+                        } else {
+                          widget.onNavigate?.call(3);
+                        }
+                      }, // 3 is the index of ChatPage in _tabs
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: navBarBlue, // Matches Nav Bar color
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                          border: Border.all(color: Colors.black, width: 0.5), // Subtle border for the icon as well
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 24),
+                            SizedBox(width: 6),
+                            Text(
+                              'AI Chat',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -520,12 +542,19 @@ class _HomeTabState extends State<HomeTab> {
                       color: colorScheme.onSurface.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.75 : 0.90),
                     ),
                   ),
-                  Text(
-                    '${animValue.toInt()} / ${target.toInt()}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.5 : 0.70),
-                    ),
+                  TweenAnimationBuilder<double>(
+                    tween: Tween<double>(begin: 0, end: current),
+                    duration: const Duration(milliseconds: 800),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, animValue, child) {
+                      return Text(
+                        '${animValue.toInt()} / ${target.toInt()}',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: colorScheme.onSurface.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.5 : 0.70),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -697,13 +726,20 @@ class _HomeTabState extends State<HomeTab> {
                   color: Colors.white.withOpacity(0.2),
                   shape: BoxShape.circle,
                 ),
-                child: Text(
-                  '$score',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                  ),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0, end: score.toDouble()),
+                  duration: const Duration(milliseconds: 800),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, child) {
+                    return Text(
+                      '${value.toInt()}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    );
+                  },
                 ),
               ),
             ],

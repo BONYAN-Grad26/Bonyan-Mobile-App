@@ -18,6 +18,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -63,35 +64,50 @@ class _RegisterPageState extends State<RegisterPage> {
     final colorScheme = Theme.of(context).colorScheme;
     final authState = context.watch<AuthProvider>();
     final isLoading = authState.status == AuthStatus.loading;
+    final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
+      resizeToAvoidBottomInset: true,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  const Color(0xFF268FB1).withValues(alpha: 0.8),
-                  colorScheme.surface,
-                ],
-                stops: const [0.0, 0.4],
+          // Background Gradient - Fixed Height for Static Look
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: screenHeight,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    const Color(0xFF268FB1).withValues(alpha: 0.8),
+                    Theme.of(context).scaffoldBackgroundColor,
+                  ],
+                  stops: const [0.0, 0.4],
+                ),
               ),
             ),
           ),
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                physics: const ClampingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 500),
                   child: Card(
+                    color: colorScheme.surface,
                     elevation: 4,
                     shadowColor: Colors.black.withValues(alpha: 0.1),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(28),
+                      side: BorderSide(
+                        color: colorScheme.outline.withValues(alpha: 0.6),
+                        width: 1.2,
+                      ),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(32),
@@ -101,8 +117,8 @@ class _RegisterPageState extends State<RegisterPage> {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const BonyaanLogo(width: 130),
-                            const SizedBox(height: 12),
+                            const BonyaanLogo(width: 85),
+                            const SizedBox(height: 28),
                             Text(
                               'Create Account',
                               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -115,7 +131,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               'Join us to unlock personalized nutrition and fitness plans.',
                               textAlign: TextAlign.center,
                               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                                    color: Colors.white,
                                   ),
                             ),
                             const SizedBox(height: 32),
@@ -159,11 +175,18 @@ class _RegisterPageState extends State<RegisterPage> {
                             const SizedBox(height: 16),
                             TextFormField(
                               controller: _passwordController,
-                              obscureText: true,
-                              decoration: const InputDecoration(
+                              obscureText: _obscurePassword,
+                              decoration: InputDecoration(
                                 labelText: 'Password',
                                 hintText: 'At least 8 characters',
-                                prefixIcon: Icon(Icons.lock_outline),
+                                prefixIcon: const Icon(Icons.lock_outline),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                    size: 20,
+                                  ),
+                                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                ),
                               ),
                               validator: (value) {
                                 final password = value ?? '';
@@ -185,16 +208,27 @@ class _RegisterPageState extends State<RegisterPage> {
                               height: 50,
                               child: ElevatedButton(
                                 onPressed: isLoading ? null : _submit,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: colorScheme.primary,
+                                  foregroundColor: colorScheme.onPrimary,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  elevation: 2,
+                                ),
                                 child: isLoading
-                                    ? const SizedBox(
+                                    ? SizedBox(
                                         width: 24,
                                         height: 24,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2.5,
-                                          color: Colors.white,
+                                          color: colorScheme.onPrimary,
                                         ),
                                       )
-                                    : const Text('Create Account'),
+                                    : const Text(
+                                        'Create Account',
+                                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                      ),
                               ),
                             ),
                             const SizedBox(height: 16),

@@ -16,6 +16,24 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  TextDirection _textDirection = TextDirection.ltr;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_handleTextChange);
+  }
+
+  void _handleTextChange() {
+    final text = _controller.text;
+    final bool isArabic = RegExp(r'[\u0600-\u06FF]').hasMatch(text);
+    final newDirection = isArabic ? TextDirection.rtl : TextDirection.ltr;
+    if (_textDirection != newDirection) {
+      setState(() {
+        _textDirection = newDirection;
+      });
+    }
+  }
 
   void _sendMessage() {
     final text = _controller.text;
@@ -41,6 +59,7 @@ class _ChatPageState extends State<ChatPage> {
 
   @override
   void dispose() {
+    _controller.removeListener(_handleTextChange);
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -174,7 +193,7 @@ class _ChatPageState extends State<ChatPage> {
                         Icon(Icons.auto_awesome, size: 64, color: colorScheme.primary.withValues(alpha: 0.5)),
                         const SizedBox(height: 16),
                         Text(
-                          'How can I help you today?',
+                          'Need help?',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: colorScheme.onSurface.withValues(alpha: 0.6),
                           ),
@@ -253,7 +272,8 @@ class _ChatPageState extends State<ChatPage> {
                     child: TextField(
                       controller: _controller,
                       textInputAction: TextInputAction.send,
-                      textAlign: TextAlign.left,
+                      textDirection: _textDirection,
+                      textAlign: _textDirection == TextDirection.rtl ? TextAlign.right : TextAlign.left,
                       style: TextStyle(
                         color: colorScheme.onSurface.withValues(alpha: 0.7),
                         fontWeight: FontWeight.w500,

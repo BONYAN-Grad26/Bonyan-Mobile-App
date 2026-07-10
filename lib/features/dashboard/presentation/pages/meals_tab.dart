@@ -256,12 +256,19 @@ class _MealsTabState extends State<MealsTab> {
                             ),
                           ),
                           const SizedBox(height: 6),
-                          Text(
-                            '${weeklyDays[i].targetCalories?.toInt() ?? 0} kcal',
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurface.withOpacity(0.65),
-                            ),
+                          TweenAnimationBuilder<double>(
+                            tween: Tween<double>(begin: 0, end: (weeklyDays[i].targetCalories ?? 0).toDouble()),
+                            duration: const Duration(milliseconds: 800),
+                            curve: Curves.easeOutCubic,
+                            builder: (context, kcal, child) {
+                              return Text(
+                                '${kcal.toInt()} kcal',
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurface.withOpacity(0.65),
+                                ),
+                              );
+                            },
                           ),
                           const SizedBox(height: 8),
                           TweenAnimationBuilder<double>(
@@ -453,7 +460,17 @@ class _MealsTabState extends State<MealsTab> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(label, style: const TextStyle(fontSize: 12)),
-            Text('${current.toInt()} / ${target.toInt()}$suffix', style: const TextStyle(fontWeight: FontWeight.bold)),
+            TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0, end: current),
+              duration: const Duration(milliseconds: 800),
+              curve: Curves.easeOutCubic,
+              builder: (context, animValue, child) {
+                return Text(
+                  '${animValue.toInt()} / ${target.toInt()}$suffix',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                );
+              },
+            ),
           ],
         ),
         const SizedBox(height: 8),
