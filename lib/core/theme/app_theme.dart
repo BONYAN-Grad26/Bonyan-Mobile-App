@@ -16,7 +16,7 @@ class AppTheme {
         onPrimary: Colors.white,
         secondary: Color(0xFF7CD070), // Vibrant Green
         onSecondary: Colors.white,
-        tertiary: Color(0xFF6366F1), // Vibrant Indigo
+        tertiary: Color(0xFFF43F5E), // Vibrant Rose (Protein)
         onTertiary: Colors.white,
         surface: Colors.white, // Cards and surfaces should be white to pop
         onSurface: _AppColors.textDark,
@@ -109,7 +109,7 @@ class AppTheme {
         onPrimary: _AppColors.darkBackground,
         secondary: _AppColors.secondaryBlueDark,
         onSecondary: _AppColors.darkBackground,
-        tertiary: _AppColors.proteinIndigoDark,
+        tertiary: _AppColors.proteinRoseDark,
         onTertiary: Colors.white,
         surface: _AppColors.darkSurface,
         onSurface: _AppColors.darkText,
@@ -191,7 +191,7 @@ class _AppColors {
   // New Dark Palette Colors (Modern Deep Navy/Teal)
   static const Color brandCyanDark = Color(0xFF268FB1); // Ocean Blue (Dimmed)
   static const Color secondaryBlueDark = Color(0xFF5D9B53); // Sage Green (Dimmed)
-  static const Color proteinIndigoDark = Color(0xFF4F46E5); // Indigo (Dimmed)
+  static const Color proteinRoseDark = Color(0xFFFB7185); // Rose (Dimmed)
   static const Color darkBackground = Color(0xFF0F1418); // Very Deep Navy Background
   static const Color darkSurface = Color(0xFF1B242C); // Deep Ocean Surface for cards
   static const Color error = Color(0xFFEF4444);

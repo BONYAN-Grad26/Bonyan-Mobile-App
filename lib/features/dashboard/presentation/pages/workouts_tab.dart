@@ -315,6 +315,7 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
   }
 
   Widget _buildWorkoutList(BuildContext context, List<WorkoutDay> workouts, dynamic currentPlan, ColorScheme colorScheme, ProgressProvider progressProvider) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     if (workouts.isEmpty) {
       return Container(
         width: double.infinity,
@@ -344,7 +345,11 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
 
         return Container(
           padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(color: colorScheme.surface, borderRadius: BorderRadius.circular(24), border: Border.all(color: colorScheme.outline)),
+          decoration: BoxDecoration(
+            color: isDark ? colorScheme.surfaceContainerLow : const Color(0xFFF9FAFB),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: colorScheme.outline.withValues(alpha: 0.5)),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -420,7 +425,13 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
 
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: colorScheme.surface, borderRadius: BorderRadius.circular(24), border: Border.all(color: colorScheme.outline)),
+      decoration: BoxDecoration(
+        color: Theme.of(context).brightness == Brightness.dark 
+            ? colorScheme.surfaceContainerLow 
+            : const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: colorScheme.outline.withValues(alpha: 0.5)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -444,7 +455,7 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
                 builder: (context, animValue, child) {
                   return Text(
                     '${animValue.toInt()} / $totalTasks',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontWeight: FontWeight.w900),
                   );
                 },
               ),
@@ -458,7 +469,9 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
             builder: (context, value, child) {
               return LinearProgressIndicator(
                 value: value,
-                backgroundColor: colorScheme.primary.withValues(alpha: 0.1),
+                backgroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white.withValues(alpha: 0.05)
+                    : colorScheme.primary.withValues(alpha: 0.1),
                 color: colorScheme.primary,
                 minHeight: 8,
                 borderRadius: BorderRadius.circular(9),

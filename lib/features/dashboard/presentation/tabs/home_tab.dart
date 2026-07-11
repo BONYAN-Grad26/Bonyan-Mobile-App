@@ -198,6 +198,7 @@ class _HomeTabState extends State<HomeTab> {
     // Dimmed colors for dark mode
     final caloriesColor = isDark ? const Color(0xFFB36B26) : const Color(0xFFF09033);
     final proteinColor = isDark ? colorScheme.tertiary.withValues(alpha: 0.7) : colorScheme.tertiary;
+    const carbsColor = Color(0xFF14B8A6); // Vibrant Teal
 
     return RefreshIndicator(
       onRefresh: () => _loadData(true),
@@ -373,75 +374,6 @@ class _HomeTabState extends State<HomeTab> {
           ),
 
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-            sliver: SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'This Week’s Progress'.toUpperCase(),
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: colorScheme.onSurface.withValues(alpha: 0.5),
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 16), // Added whitespace under the title
-                  (() {
-                    int totalMeals = 0;
-                    int completedMeals = 0;
-                    if (dietProvider.currentPlan?.days != null && dietProvider.currentPlan!.days!.isNotEmpty) {
-                      for (final day in dietProvider.currentPlan!.days!) {
-                        if (day.meals != null) {
-                          totalMeals += day.meals!.length;
-                          for (final meal in day.meals!) {
-                            final d = day.dayOfWeek ?? 0;
-                            final mId = meal.id ?? meal.name.hashCode;
-                            final uniqueId = d * 100000 + (mId.abs() % 100000);
-                            if (progressProvider.isMealCompleted(uniqueId)) {
-                              completedMeals++;
-                            }
-                          }
-                        }
-                      }
-                    }
-                    if (totalMeals == 0) totalMeals = 0;
-
-                    int totalWorkouts = 0;
-                    if (workoutProvider.currentPlan?.weeklySchedule != null) {
-                      for (final day in workoutProvider.currentPlan!.weeklySchedule!.values) {
-                        if (day.exercises != null && day.exercises!.isNotEmpty) {
-                          totalWorkouts++;
-                        }
-                      }
-                    }
-                    if (totalWorkouts == 0) totalWorkouts = 0;
-
-                    int completedWorkouts = 0;
-                    if (workoutProvider.currentPlan?.weeklySchedule != null) {
-                      workoutProvider.currentPlan!.weeklySchedule!.values.forEach((workout) {
-                        final sessionName = workout.session ?? 'Workout';
-                        final isRestDay = sessionName.toLowerCase().contains('rest') || (workout.exercises == null || workout.exercises!.isEmpty);
-                        if (!isRestDay && progressProvider.isWorkoutCompleted(sessionName.hashCode)) {
-                          completedWorkouts++;
-                        }
-                      });
-                    }
-
-                    return Column(
-                      children: [
-                        _buildProgressPanel(context, 'Workouts Completed', completedWorkouts.toDouble(), totalWorkouts.toDouble(), colorScheme.primary),
-                        const SizedBox(height: 12),
-                        _buildProgressPanel(context, 'Meals Logged', completedMeals.toDouble(), totalMeals.toDouble(), colorScheme.secondary),
-                      ],
-                    );
-                  })(),
-
-                ],
-              ),
-            ),
-          ),
-          SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
             sliver: SliverToBoxAdapter(
               child: Column(
@@ -510,9 +442,78 @@ class _HomeTabState extends State<HomeTab> {
                           context,
                           mealTitle,
                           mealSubtitle,
-                          colorScheme.secondary,
+                          colorScheme.primary,
                           navigateIndex: 1,
                         ),
+                      ],
+                    );
+                  })(),
+                ],
+              ),
+            ),
+          ),
+
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+            sliver: SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'This Week’s Progress'.toUpperCase(),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: colorScheme.onSurface.withValues(alpha: 0.5),
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 16), // Added whitespace under the title
+                  (() {
+                    int totalMeals = 0;
+                    int completedMeals = 0;
+                    if (dietProvider.currentPlan?.days != null && dietProvider.currentPlan!.days!.isNotEmpty) {
+                      for (final day in dietProvider.currentPlan!.days!) {
+                        if (day.meals != null) {
+                          totalMeals += day.meals!.length;
+                          for (final meal in day.meals!) {
+                            final d = day.dayOfWeek ?? 0;
+                            final mId = meal.id ?? meal.name.hashCode;
+                            final uniqueId = d * 100000 + (mId.abs() % 100000);
+                            if (progressProvider.isMealCompleted(uniqueId)) {
+                              completedMeals++;
+                            }
+                          }
+                        }
+                      }
+                    }
+                    if (totalMeals == 0) totalMeals = 0;
+
+                    int totalWorkouts = 0;
+                    if (workoutProvider.currentPlan?.weeklySchedule != null) {
+                      for (final day in workoutProvider.currentPlan!.weeklySchedule!.values) {
+                        if (day.exercises != null && day.exercises!.isNotEmpty) {
+                          totalWorkouts++;
+                        }
+                      }
+                    }
+                    if (totalWorkouts == 0) totalWorkouts = 0;
+
+                    int completedWorkouts = 0;
+                    if (workoutProvider.currentPlan?.weeklySchedule != null) {
+                      workoutProvider.currentPlan!.weeklySchedule!.values.forEach((workout) {
+                        final sessionName = workout.session ?? 'Workout';
+                        final isRestDay = sessionName.toLowerCase().contains('rest') || (workout.exercises == null || workout.exercises!.isEmpty);
+                        if (!isRestDay && progressProvider.isWorkoutCompleted(sessionName.hashCode)) {
+                          completedWorkouts++;
+                        }
+                      });
+                    }
+
+                    return Column(
+                      children: [
+                        _buildProgressPanel(context, 'Workouts Completed', completedWorkouts.toDouble(), totalWorkouts.toDouble(), colorScheme.primary),
+                        const SizedBox(height: 12),
+                        _buildProgressPanel(context, 'Meals Logged', completedMeals.toDouble(), totalMeals.toDouble(), colorScheme.primary),
                       ],
                     );
                   })(),
@@ -568,8 +569,8 @@ class _HomeTabState extends State<HomeTab> {
                       return Text(
                         '${animValue.toInt()} / ${target.toInt()}',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: colorScheme.onSurface.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.5 : 0.70),
+                          fontWeight: FontWeight.w900,
+                          color: colorScheme.onSurface.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.6 : 0.8),
                         ),
                       );
                     },
@@ -583,8 +584,8 @@ class _HomeTabState extends State<HomeTab> {
                 alignment: Alignment.centerLeft,
                 decoration: BoxDecoration(
                   color: Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white.withOpacity(0.12)
-                      : Colors.black.withOpacity(0.08), // Grey visible track
+                      ? Colors.white.withValues(alpha: 0.05)
+                      : Colors.black.withValues(alpha: 0.05), // Neutral visible track
                   borderRadius: BorderRadius.circular(99),
                 ),
                 child: FractionallySizedBox(
@@ -641,41 +642,40 @@ class _HomeTabState extends State<HomeTab> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 10),
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Icon(Icons.schedule, size: 16, color: colorScheme.onSurface.withOpacity(0.65)),
-                  const SizedBox(width: 8),
-                  Text(
-                    subtitle,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface.withOpacity(0.72),
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.onSurface,
+                      ),
                     ),
+                  ),
+                  const SizedBox(width: 12),
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 14,
+                    color: colorScheme.onSurface.withValues(alpha: 0.3),
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: handleTap,
-                  icon: const Icon(Icons.arrow_forward),
-                  label: const Text('View'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: accent,
-                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(Icons.schedule, size: 14, color: colorScheme.onSurface.withOpacity(0.5)),
+                  const SizedBox(width: 8),
+                  Text(
+                    subtitle,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurface.withOpacity(0.5),
                     ),
                   ),
-                ),
+                ],
               ),
             ],
           ),
@@ -741,8 +741,8 @@ class _HomeTabState extends State<HomeTab> {
                         value: value / 100,
                         strokeWidth: 12,
                         backgroundColor: isDark 
-                            ? Colors.white.withValues(alpha: 0.1) 
-                            : statusColor.withValues(alpha: 0.1),
+                            ? Colors.white.withValues(alpha: 0.05) 
+                            : statusColor.withValues(alpha: 0.05),
                         valueColor: AlwaysStoppedAnimation<Color>(statusColor),
                         strokeCap: StrokeCap.round,
                       ),

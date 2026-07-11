@@ -141,8 +141,8 @@ class MetricCard extends StatelessWidget {
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: isDark 
-                      ? Colors.white.withValues(alpha: 0.1) 
-                      : colorScheme.outline.withValues(alpha: 0.2),
+                      ? Colors.white.withValues(alpha: 0.05) 
+                      : colorScheme.onSurface.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),

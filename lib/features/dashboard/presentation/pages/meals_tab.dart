@@ -158,6 +158,8 @@ class _MealsTabState extends State<MealsTab> {
       return day * 100000 + (mId.abs() % 100000);
     }
 
+    const carbsColor = Color(0xFF14B8A6); // Vibrant Teal
+
     for (final meal in meals) {
       final uniqueId = getUniqueMealId(selectedDayPlan, meal);
       if (progressProvider.isMealCompleted(uniqueId)) {
@@ -186,7 +188,7 @@ class _MealsTabState extends State<MealsTab> {
                   const SizedBox(height: 32),
                   _buildScannerButton(context, colorScheme),
                   const SizedBox(height: 32),
-                  _buildMealsSection(context, selectedDayPlan, meals, colorScheme, progressProvider, getUniqueMealId),
+                  _buildMealsSection(context, selectedDayPlan, meals, colorScheme, progressProvider, getUniqueMealId, caloriesPerMeal, proteinPerMeal, carbsPerMeal),
                   const SizedBox(height: 16),
                   _buildSummaryCard(context, currentCalories, targetCalories, currentProtein, targetProtein, currentCarbs, targetCarbs, colorScheme),
                   const SizedBox(height: 120), // Extra space for nav bar
@@ -374,7 +376,10 @@ class _MealsTabState extends State<MealsTab> {
     );
   }
 
-  Widget _buildMealsSection(BuildContext context, DayPlan? selectedDayPlan, List<Meal> meals, ColorScheme colorScheme, ProgressProvider progressProvider, Function getUniqueMealId) {
+  Widget _buildMealsSection(BuildContext context, DayPlan? selectedDayPlan, List<Meal> meals, ColorScheme colorScheme, ProgressProvider progressProvider, Function getUniqueMealId, double kcal, double protein, double carbs) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const carbsColor = Color(0xFF14B8A6);
+
     IconData getMealIcon(String? type) {
       if (type == null) return Icons.restaurant;
       final lower = type.toLowerCase();
@@ -425,48 +430,142 @@ class _MealsTabState extends State<MealsTab> {
         else
           ...meals.map((meal) {
             final mealId = getUniqueMealId(selectedDayPlan, meal);
+
             return Container(
               margin: const EdgeInsets.only(bottom: 14),
               decoration: BoxDecoration(
-                color: colorScheme.surface,
+                color: isDark ? colorScheme.surfaceContainerLow : const Color(0xFFF9FAFB),
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: colorScheme.outline),
+                border: Border.all(color: colorScheme.outline.withValues(alpha: 0.5)),
               ),
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Icon(getMealIcon(meal.mealType), color: colorScheme.primary, size: 18),
-                      const SizedBox(width: 8),
-                      Expanded(child: Text(meal.mealType ?? 'Meal', style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.65), fontWeight: FontWeight.w600))),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: colorScheme.primary.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(getMealIcon(meal.mealType), color: colorScheme.primary, size: 14),
+                            const SizedBox(width: 6),
+                            Text(
+                              (meal.mealType ?? 'Meal').toUpperCase(),
+                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: colorScheme.primary,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       Checkbox(
                         value: progressProvider.isMealCompleted(mealId),
                         onChanged: (val) => progressProvider.toggleMeal(mealId, val ?? false),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                       ),
                     ],
                   ),
-                  Text(meal.name ?? 'Unnamed Meal', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
+                  Text(
+                    meal.name ?? 'Unnamed Meal',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                  const SizedBox(height: 16),
+                  // Nutritional values row
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildMiniMetric(context, '${kcal.toInt()}', 'kcal', const Color(0xFFF09033)),
+                      _buildMiniMetric(context, '${protein.toInt()}g', 'Protein', colorScheme.tertiary),
+                      _buildMiniMetric(context, '${carbs.toInt()}g', 'Carbs', carbsColor),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
-                      const Icon(Icons.schedule, size: 16),
+                      Icon(Icons.schedule, size: 14, color: colorScheme.onSurface.withOpacity(0.5)),
                       const SizedBox(width: 6),
-                      Text('Prep: ${meal.preparationTime ?? 15} mins'),
+                      Text(
+                        '${meal.preparationTime ?? 15} MINS PREP',
+                        style: TextStyle(
+                          fontSize: 10, 
+                          fontWeight: FontWeight.w900,
+                          color: colorScheme.onSurface.withOpacity(0.35),
+                          letterSpacing: 0.8,
+                        ),
+                      ),
                     ],
                   ),
                   if (meal.preparationInstructions != null) ...[
                     const Divider(height: 32),
-                    Text('AI Prep Tips', style: TextStyle(fontWeight: FontWeight.bold, color: colorScheme.primary)),
+                    Text(
+                      'AI PREP TIPS',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        color: colorScheme.primary,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                     const SizedBox(height: 8),
-                    Text(meal.preparationInstructions!, style: const TextStyle(fontSize: 13, height: 1.5)),
+                    Text(
+                      meal.preparationInstructions!,
+                      style: const TextStyle(fontSize: 13, height: 1.5),
+                    ),
                   ],
                 ],
               ),
             );
           }),
       ],
+    );
+  }
+
+  Widget _buildMiniMetric(BuildContext context, String value, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: color.withValues(alpha: 0.15),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w900,
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              color: color.withValues(alpha: 0.6),
+              fontWeight: FontWeight.w900,
+              fontSize: 8,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -487,7 +586,7 @@ class _MealsTabState extends State<MealsTab> {
           const SizedBox(height: 14),
           _buildProgressRow(context, 'Protein', currentProtein, targetProtein.toDouble(), 'g', colorScheme.tertiary),
           const SizedBox(height: 14),
-          _buildProgressRow(context, 'Carbs', currentCarbs, targetCarbs.toDouble(), 'g', colorScheme.secondary),
+          _buildProgressRow(context, 'Carbs', currentCarbs, targetCarbs.toDouble(), 'g', const Color(0xFF14B8A6)),
         ],
       ),
     );
@@ -495,6 +594,8 @@ class _MealsTabState extends State<MealsTab> {
 
   Widget _buildProgressRow(BuildContext context, String label, double current, double target, String suffix, Color accent) {
     final progress = target > 0 ? (current / target) : 0.0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -509,7 +610,7 @@ class _MealsTabState extends State<MealsTab> {
               builder: (context, animValue, child) {
                 return Text(
                   '${animValue.toInt()} / ${target.toInt()}$suffix',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontWeight: FontWeight.w900),
                 );
               },
             ),
@@ -523,7 +624,9 @@ class _MealsTabState extends State<MealsTab> {
           builder: (context, value, child) {
             return LinearProgressIndicator(
               value: value,
-              backgroundColor: accent.withValues(alpha: 0.1),
+              backgroundColor: isDark 
+                  ? Colors.white.withValues(alpha: 0.05) 
+                  : accent.withValues(alpha: 0.1),
               color: accent,
               minHeight: 8,
               borderRadius: BorderRadius.circular(9),
