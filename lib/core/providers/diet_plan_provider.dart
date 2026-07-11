@@ -258,4 +258,12 @@ class DietPlanProvider extends ChangeNotifier {
       return false;
     }
   }
+  void reset() {
+    _weeklyPlans = [];
+    _currentPlan = null;
+    _todayPlan = null;
+    _errorMessage = null;
+    _generationError = null;
+    notifyListeners();
+  }
 }

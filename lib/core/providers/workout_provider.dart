@@ -224,4 +224,12 @@ class WorkoutProvider extends ChangeNotifier {
       return false;
     }
   }
+  void reset() {
+    _userWorkouts = [];
+    _currentPlan = null;
+    _todayWorkout = null;
+    _errorMessage = null;
+    _generationError = null;
+    notifyListeners();
+  }
 }

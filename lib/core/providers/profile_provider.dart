@@ -185,4 +185,10 @@ class ProfileProvider extends ChangeNotifier {
       return false;
     }
   }
+  void reset() {
+    _userProfile = null;
+    _healthMetrics = null;
+    _errorMessage = null;
+    notifyListeners();
+  }
 }

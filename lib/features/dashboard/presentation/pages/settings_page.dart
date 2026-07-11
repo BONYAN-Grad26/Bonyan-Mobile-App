@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'package:bonyaan_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:bonyaan_app/core/providers/providers.dart';
+import 'package:bonyaan_app/features/onboarding/presentation/providers/onboarding_provider.dart';
 
 class SettingsPage extends StatefulWidget {
   final VoidCallback? onBack;
@@ -174,6 +175,10 @@ class _SettingsPageState extends State<SettingsPage> {
   Widget _buildSignOutButton(BuildContext context, ColorScheme colorScheme) {
     return ElevatedButton.icon(
       onPressed: () {
+        context.read<OnboardingProvider>().reset();
+        context.read<DietPlanProvider>().reset();
+        context.read<WorkoutProvider>().reset();
+        context.read<ProfileProvider>().reset();
         context.read<AuthProvider>().logout();
         Navigator.of(context, rootNavigator: true).popUntil((route) => route.isFirst);
       },

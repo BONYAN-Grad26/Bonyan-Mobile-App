@@ -195,4 +195,23 @@ class OnboardingProvider extends ChangeNotifier {
 
     return (bmr * activityFactor).round();
   }
+  void reset() {
+    age = null;
+    gender = null;
+    heightCm = null;
+    weightKg = null;
+    muscleMassKg = null;
+    fatPercentage = null;
+    activityLevel = null;
+    dietGoal = null;
+    dietType = null;
+    targetWeightKg = null;
+    medicalNotes = null;
+    isCheckingExistingProfile = false;
+    hasCheckedExistingProfile = false;
+    submissionStatus = OnboardingSubmissionStatus.initial;
+    savedProfile = null;
+    errorMessage = null;
+    notifyListeners();
+  }
 }

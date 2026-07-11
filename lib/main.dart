@@ -31,6 +31,13 @@ Future<void> main() async {
     onUnauthorized: () {
       authProvider.logout();
       Future.microtask(() {
+        final ctx = globalNavigatorKey.currentContext;
+        if (ctx != null) {
+          ctx.read<OnboardingProvider>().reset();
+          ctx.read<DietPlanProvider>().reset();
+          ctx.read<WorkoutProvider>().reset();
+          ctx.read<ProfileProvider>().reset();
+        }
         globalNavigatorKey.currentState?.popUntil((route) => route.isFirst);
       });
     },
@@ -76,8 +83,13 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider<SettingsProvider>(
           create: (_) => SettingsProvider(),
         ),
-        ChangeNotifierProvider<ProgressProvider>(
+        ChangeNotifierProxyProvider<AuthProvider, ProgressProvider>(
           create: (_) => ProgressProvider(prefs: prefs),
+          update: (_, auth, progress) {
+            final p = progress ?? ProgressProvider(prefs: prefs);
+            p.updateUserId(auth.currentUser?.id);
+            return p;
+          },
         ),
         ChangeNotifierProvider<ChatProvider>(
           create: (_) => ChatProvider(),
