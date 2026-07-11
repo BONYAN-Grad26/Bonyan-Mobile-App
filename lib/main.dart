@@ -88,7 +88,7 @@ class MyApp extends StatelessWidget {
           create: (_) => ProgressProvider(prefs: prefs),
           update: (_, auth, progress) {
             final p = progress ?? ProgressProvider(prefs: prefs);
-            p.updateUserId(auth.currentUser?.id);
+            p.updateUserEmail(auth.currentUser?.email);
             return p;
           },
         ),

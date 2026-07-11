@@ -6,18 +6,18 @@ class ProgressProvider extends ChangeNotifier {
 
   ProgressProvider({required this.prefs});
 
-  int? currentUserId;
+  String? currentUserEmail;
 
-  void updateUserId(int? userId) {
-    if (currentUserId != userId) {
-      currentUserId = userId;
+  void updateUserEmail(String? userEmail) {
+    if (currentUserEmail != userEmail) {
+      currentUserEmail = userEmail;
       notifyListeners();
     }
   }
 
   String _getKey(String baseKey) {
-    if (currentUserId == null) return baseKey;
-    return '${currentUserId}_$baseKey';
+    if (currentUserEmail == null || currentUserEmail!.isEmpty) return baseKey;
+    return '${currentUserEmail}_$baseKey';
   }
 
   // Track meal completion: key is 'meal_${mealId}'
@@ -51,12 +51,12 @@ class ProgressProvider extends ChangeNotifier {
   }
 
   int get completedMealsCount {
-    final prefix = currentUserId == null ? 'meal_' : '${currentUserId}_meal_';
+    final prefix = (currentUserEmail == null || currentUserEmail!.isEmpty) ? 'meal_' : '${currentUserEmail}_meal_';
     return prefs.getKeys().where((k) => k.startsWith(prefix) && prefs.getBool(k) == true).length;
   }
 
   int get completedWorkoutsCount {
-    final prefix = currentUserId == null ? 'workout_' : '${currentUserId}_workout_';
+    final prefix = (currentUserEmail == null || currentUserEmail!.isEmpty) ? 'workout_' : '${currentUserEmail}_workout_';
     return prefs.getKeys().where((k) => k.startsWith(prefix) && prefs.getBool(k) == true).length;
   }
   
@@ -73,9 +73,9 @@ class ProgressProvider extends ChangeNotifier {
   // Clear progress (e.g. on new week)
   Future<void> clearProgress() async {
     final keys = prefs.getKeys();
-    final mealPrefix = currentUserId == null ? 'meal_' : '${currentUserId}_meal_';
-    final workoutPrefix = currentUserId == null ? 'workout_' : '${currentUserId}_workout_';
-    final exercisePrefix = currentUserId == null ? 'exercise_' : '${currentUserId}_exercise_';
+    final mealPrefix = (currentUserEmail == null || currentUserEmail!.isEmpty) ? 'meal_' : '${currentUserEmail}_meal_';
+    final workoutPrefix = (currentUserEmail == null || currentUserEmail!.isEmpty) ? 'workout_' : '${currentUserEmail}_workout_';
+    final exercisePrefix = (currentUserEmail == null || currentUserEmail!.isEmpty) ? 'exercise_' : '${currentUserEmail}_exercise_';
 
     for (String key in keys) {
       if (key.startsWith(mealPrefix) || key.startsWith(workoutPrefix) || key.startsWith(exercisePrefix)) {

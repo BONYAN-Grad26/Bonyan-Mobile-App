@@ -97,6 +97,11 @@ class AuthProvider extends ChangeNotifier {
     }
     try {
       _currentUser = await _authRepository.login(email: email, password: password);
+      // Fallback: If backend doesn't return user details, create a minimal one with email
+      if (_currentUser == null) {
+        _currentUser = UserModel(email: email, firstName: '', lastName: '');
+      }
+
       if (_currentUser != null) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('cached_current_user', jsonEncode(_currentUser!.toJson()));
@@ -147,6 +152,11 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         password: password,
       );
+      // Fallback: If backend doesn't return user details, create a minimal one
+      if (_currentUser == null) {
+        _currentUser = UserModel(email: email, firstName: firstName, lastName: lastName);
+      }
+
       if (_currentUser != null) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('cached_current_user', jsonEncode(_currentUser!.toJson()));
