@@ -35,6 +35,7 @@ class MetricCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     Color accentColor = customColor ?? colorScheme.primary;
     if (customColor == null) {
@@ -54,10 +55,21 @@ class MetricCard extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: accentColor, // Solid color
+        color: isDark ? colorScheme.surfaceContainerHighest : Colors.white,
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: colorScheme.outline.withValues(alpha: 0.5),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: accentColor.withValues(alpha: isDark ? 0.12 : 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -66,31 +78,31 @@ class MetricCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.25),
-                  borderRadius: BorderRadius.circular(12),
+                  color: accentColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(icon, color: Colors.white, size: 22),
+                child: Icon(icon, color: accentColor, size: 18),
               ),
               if (trend != null)
                 Icon(
                   trend!.direction == TrendDirection.up ? Icons.trending_up : Icons.trending_down,
-                  color: Colors.white,
-                  size: 20,
+                  color: accentColor,
+                  size: 16,
                 ),
             ],
           ),
           const Spacer(),
           Text(
             title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+            style: TextStyle(
+              color: colorScheme.onSurface.withValues(alpha: 0.6),
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 2),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
@@ -102,34 +114,35 @@ class MetricCard extends StatelessWidget {
                 builder: (context, animValue, child) {
                   return Text(
                     animValue.toInt().toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
+                    style: TextStyle(
+                      color: colorScheme.onSurface,
+                      fontSize: 20,
                       fontWeight: FontWeight.w900,
                     ),
                   );
                 },
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: 2),
               Text(
                 unit,
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
-                  fontSize: 12,
+                  color: colorScheme.onSurface.withValues(alpha: 0.4),
+                  fontSize: 10,
                   fontWeight: FontWeight.bold,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          // Unique horizontal mini-progress bar
+          const SizedBox(height: 8),
           Stack(
             children: [
               Container(
-                height: 8,
+                height: 6,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.25),
+                  color: isDark 
+                      ? Colors.white.withValues(alpha: 0.1) 
+                      : colorScheme.outline.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -141,9 +154,9 @@ class MetricCard extends StatelessWidget {
                   return FractionallySizedBox(
                     widthFactor: value,
                     child: Container(
-                      height: 8,
+                      height: 6,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: accentColor,
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),

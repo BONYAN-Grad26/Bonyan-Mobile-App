@@ -738,7 +738,9 @@ class _HomeTabState extends State<HomeTab> {
                       child: CircularProgressIndicator(
                         value: value / 100,
                         strokeWidth: 12,
-                        backgroundColor: statusColor.withValues(alpha: 0.1),
+                        backgroundColor: isDark 
+                            ? Colors.white.withValues(alpha: 0.1) 
+                            : statusColor.withValues(alpha: 0.1),
                         valueColor: AlwaysStoppedAnimation<Color>(statusColor),
                         strokeCap: StrokeCap.round,
                       ),
