@@ -11,6 +11,7 @@ import 'package:bonyaan_app/features/auth/presentation/pages/login_page.dart';
 import 'package:bonyaan_app/features/auth/presentation/providers/auth_provider.dart';
 import 'package:bonyaan_app/features/dashboard/presentation/pages/main_dashboard.dart';
 import 'package:bonyaan_app/features/onboarding/data/repositories/metrics_repository.dart';
+import 'package:bonyaan_app/features/onboarding/presentation/pages/onboarding_wizard.dart';
 import 'package:bonyaan_app/features/onboarding/presentation/providers/onboarding_provider.dart';
 import 'package:bonyaan_app/features/splash/splash_screen.dart';
 
@@ -136,6 +137,11 @@ class MyApp extends StatelessWidget {
                             child: CircularProgressIndicator(),
                           ),
                         );
+                      }
+
+                      if (onboardingProvider.hasCheckedExistingProfile &&
+                          onboardingProvider.savedProfile == null) {
+                        return const OnboardingWizard();
                       }
 
                       return const MainDashboard();

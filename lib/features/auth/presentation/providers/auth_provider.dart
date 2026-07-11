@@ -5,6 +5,8 @@ import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/token_storage_impl.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 enum AuthStatus {
   initial,
@@ -53,6 +55,16 @@ class AuthProvider extends ChangeNotifier {
 
       if (accessToken != null && accessToken.isNotEmpty) {
         await _tokenStorage.saveAccessToken(accessToken);
+        // Restore user from SharedPreferences if available
+        final prefs = await SharedPreferences.getInstance();
+        final userJsonStr = prefs.getString('cached_current_user');
+        if (userJsonStr != null) {
+          try {
+            _currentUser = UserModel.fromJson(jsonDecode(userJsonStr));
+          } catch (e) {
+            // ignore JSON decode error
+          }
+        }
         _status = AuthStatus.authenticated;
       } else {
         _status = AuthStatus.unauthenticated;
@@ -85,6 +97,10 @@ class AuthProvider extends ChangeNotifier {
     }
     try {
       _currentUser = await _authRepository.login(email: email, password: password);
+      if (_currentUser != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('cached_current_user', jsonEncode(_currentUser!.toJson()));
+      }
 
       String? accessToken = await _secureStorage.readAccessToken().timeout(
         const Duration(milliseconds: 800),
@@ -131,6 +147,10 @@ class AuthProvider extends ChangeNotifier {
         email: email,
         password: password,
       );
+      if (_currentUser != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('cached_current_user', jsonEncode(_currentUser!.toJson()));
+      }
 
       // Registration may require email confirmation before authentication.
       _status = AuthStatus.unauthenticated;
@@ -170,6 +190,8 @@ class AuthProvider extends ChangeNotifier {
     try {
       await _secureStorage.clearTokens();
       await _tokenStorage.clearAccessToken();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('cached_current_user');
     } catch (e) {
       debugPrint('Error clearing tokens during logout: $e');
     } finally {
