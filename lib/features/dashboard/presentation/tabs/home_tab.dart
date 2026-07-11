@@ -204,7 +204,9 @@ class _HomeTabState extends State<HomeTab> {
       color: navBarBlue,
       backgroundColor: colorScheme.surface,
       displacement: 40,
+      edgeOffset: 20,
       strokeWidth: 3,
+      triggerMode: RefreshIndicatorTriggerMode.onEdge,
       child: CustomScrollView(
         physics: const ClampingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
         slivers: [
@@ -213,56 +215,69 @@ class _HomeTabState extends State<HomeTab> {
             sliver: SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 48, 16, 24), // Increased top padding
               sliver: SliverToBoxAdapter(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
-                            color: navBarBlue.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(20),
+                            color: navBarBlue.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(100),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(greetingIcon, size: 14, color: navBarBlue),
-                              const SizedBox(width: 6),
+                              Icon(greetingIcon, size: 16, color: navBarBlue),
+                              const SizedBox(width: 8),
                               Text(
                                 timeGreeting.toUpperCase(),
                                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                                   color: navBarBlue,
                                   fontWeight: FontWeight.w900,
                                   letterSpacing: 1.0,
+                                  fontSize: 10,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(height: 10),
-                        Padding(
-                          padding: const EdgeInsets.only(left: 10), // Aligns "Hello" with the pill's icon/text start
-                          child: RichText(
-                            text: TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: '$_randomGreeting, ',
-                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    color: colorScheme.onSurface,
-                                    fontWeight: FontWeight.w300,
-                                    letterSpacing: -0.5,
-                                  ),
+                        GestureDetector(
+                          onTap: () {
+                            if (widget.onJump != null) {
+                              widget.onJump!(3);
+                            } else {
+                              widget.onNavigate?.call(3);
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: navBarBlue,
+                              borderRadius: BorderRadius.circular(100),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: navBarBlue.withValues(alpha: 0.4),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
                                 ),
-                                TextSpan(
-                                  text: greetingName,
-                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    color: navBarBlue,
+                              ],
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.chat_rounded, color: Colors.white, size: 18),
+                                SizedBox(width: 10),
+                                Text(
+                                  'AI CHAT',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.w900,
-                                    letterSpacing: -0.5,
+                                    letterSpacing: 1.2,
                                   ),
                                 ),
                               ],
@@ -271,39 +286,26 @@ class _HomeTabState extends State<HomeTab> {
                         ),
                       ],
                     ),
-                    GestureDetector(
-                      onTap: () {
-                        if (widget.onJump != null) {
-                          widget.onJump!(3);
-                        } else {
-                          widget.onNavigate?.call(3);
-                        }
-                      }, // 3 is the index of ChatPage in _tabs
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: navBarBlue, // Matches Nav Bar color
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                          border: Border.all(color: Colors.black, width: 0.5), // Subtle border for the icon as well
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 4),
+                      child: RichText(
+                        text: TextSpan(
                           children: [
-                            Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 24),
-                            SizedBox(width: 6),
-                            Text(
-                              'AI Chat',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                            TextSpan(
+                              text: '$_randomGreeting, ',
+                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                color: colorScheme.onSurface,
+                                fontWeight: FontWeight.w300,
+                                letterSpacing: -1.0,
+                              ),
+                            ),
+                            TextSpan(
+                              text: greetingName,
+                              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                color: navBarBlue,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -1.0,
                               ),
                             ),
                           ],
@@ -317,42 +319,56 @@ class _HomeTabState extends State<HomeTab> {
           ),
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 14,
-                crossAxisSpacing: 14,
-                childAspectRatio: 1.02,
-              ),
-              delegate: SliverChildListDelegate(
-                [
-                  MetricCard(
-                    title: 'Calories',
-                    value: '$caloriesCurrent',
-                    unit: 'kcal',
-                    icon: Icons.local_fire_department,
-                    variant: MetricVariant.nutrition,
-                    progress: caloriesCurrent / caloriesGoal * 100,
-                    customColor: caloriesColor,
-                  ),
-                  MetricCard(
-                    title: 'Protein',
-                    value: '$proteinCurrent',
-                    unit: 'g',
-                    icon: Icons.restaurant,
-                    variant: MetricVariant.health,
-                    progress: proteinCurrent / proteinGoal * 100,
-                    customColor: proteinColor,
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             sliver: SliverToBoxAdapter(
-              child: _buildHealthScoreCard(context, 'Overall Health Score', (profileProvider.healthMetrics?.bmi != null ? (100 - (profileProvider.healthMetrics!.bmi! - 22).abs() * 2).toInt() : 85), colorScheme),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Main Health Score Card
+                    Expanded(
+                      flex: 5,
+                      child: _buildHealthScoreCard(
+                        context, 
+                        'Health Score', 
+                        (profileProvider.healthMetrics?.bmi != null ? (100 - (profileProvider.healthMetrics!.bmi! - 22).abs() * 2).toInt() : 85), 
+                        colorScheme
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Stacked Nutrition Cards
+                    Expanded(
+                      flex: 4,
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: MetricCard(
+                              title: 'Calories',
+                              value: '$caloriesCurrent',
+                              unit: 'kcal',
+                              icon: Icons.local_fire_department_rounded,
+                              variant: MetricVariant.nutrition,
+                              progress: (caloriesCurrent / caloriesGoal * 100).clamp(0, 100),
+                              customColor: caloriesColor,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Expanded(
+                            child: MetricCard(
+                              title: 'Protein',
+                              value: '$proteinCurrent',
+                              unit: 'g',
+                              icon: Icons.restaurant_rounded,
+                              variant: MetricVariant.health,
+                              progress: (proteinCurrent / proteinGoal * 100).clamp(0, 100),
+                              customColor: proteinColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
 
@@ -667,116 +683,97 @@ class _HomeTabState extends State<HomeTab> {
   }
 
   Widget _buildHealthScoreCard(BuildContext context, String title, int score, ColorScheme colorScheme) {
-    String status;
-    IconData statusIcon;
-    
-    if (score >= 90) {
-      status = 'Excellent';
-      statusIcon = Icons.stars_rounded;
-    } else if (score >= 70) {
-      status = 'Good';
-      statusIcon = Icons.check_circle_rounded;
-    } else {
-      status = 'Needs Focus';
-      statusIcon = Icons.info_outline_rounded;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    (String, Color) getStatusInfo(double value) {
+      if (value >= 90) return ('Excellent', const Color(0xFF22C55E));
+      if (value >= 70) return ('Good', const Color(0xFF7CD070));
+      if (value >= 50) return ('Fair', const Color(0xFFFFB74D));
+      return ('Focus', const Color(0xFFF87171)); // Modern Rose/Soft Red
     }
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: colorScheme.secondary,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Column(
-        children: [
-          Row(
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: score.toDouble()),
+      duration: const Duration(milliseconds: 1200),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        final (status, statusColor) = getStatusInfo(value);
+        
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+          decoration: BoxDecoration(
+            color: isDark ? colorScheme.surfaceContainerHighest : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: colorScheme.outline.withValues(alpha: 0.5),
+              width: 1.0,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: statusColor.withValues(alpha: isDark ? 0.15 : 0.08),
+                blurRadius: 15,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(statusIcon, color: Colors.white.withOpacity(0.9), size: 16),
-                      const SizedBox(width: 6),
-                      Text(
-                        status,
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  shape: BoxShape.circle,
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
-                child: TweenAnimationBuilder<double>(
-                  tween: Tween<double>(begin: 0, end: score.toDouble()),
-                  duration: const Duration(milliseconds: 800),
-                  curve: Curves.easeOutCubic,
-                  builder: (context, value, child) {
-                    return Text(
+              ),
+              const SizedBox(height: 16),
+              Center(
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 115,
+                      height: 115,
+                      child: CircularProgressIndicator(
+                        value: value / 100,
+                        strokeWidth: 12,
+                        backgroundColor: statusColor.withValues(alpha: 0.1),
+                        valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                        strokeCap: StrokeCap.round,
+                      ),
+                    ),
+                    Text(
                       '${value.toInt()}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
+                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
                         fontWeight: FontWeight.w900,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          // Unique horizontal health bar
-          Stack(
-            children: [
-              Container(
-                height: 12,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.2), // Visible grey background
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              TweenAnimationBuilder<double>(
-                tween: Tween<double>(begin: 0, end: score / 100),
-                duration: const Duration(milliseconds: 800),
-                curve: Curves.easeOutCubic,
-                builder: (context, value, child) {
-                  return FractionallySizedBox(
-                    widthFactor: value,
-                    child: Container(
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
+                        color: colorScheme.onSurface,
                       ),
                     ),
-                  );
-                },
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: statusColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(100),
+                ),
+                child: Text(
+                  status.toUpperCase(),
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
+                ),
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

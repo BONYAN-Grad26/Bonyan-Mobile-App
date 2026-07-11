@@ -145,7 +145,10 @@ class _MealsTabState extends State<MealsTab> {
 
     return RefreshIndicator(
       onRefresh: () => _loadData(true),
+      displacement: 40,
+      edgeOffset: 20,
       child: CustomScrollView(
+        physics: const ClampingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
         slivers: [
           SliverSafeArea(
             bottom: false,
