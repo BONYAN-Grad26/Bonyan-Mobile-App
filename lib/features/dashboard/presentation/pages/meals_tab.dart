@@ -15,6 +15,7 @@ class MealsTab extends StatefulWidget {
 class _MealsTabState extends State<MealsTab> {
   bool _isGenerating = false;
   int _selectedIndex = -1; // -1 means auto-select today on first load
+  static bool _hasInitialScrolledSession = false;
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -104,6 +105,29 @@ class _MealsTabState extends State<MealsTab> {
     if (_selectedIndex == -1 && weeklyDays.isNotEmpty) {
       int todayIdx = weeklyDays.indexWhere((dp) => dp.dayOfWeek == todayWeekday);
       _selectedIndex = todayIdx != -1 ? todayIdx : 0;
+      
+      // Scroll to today's item on first load (only first time in session)
+      if (!_hasInitialScrolledSession) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _hasInitialScrolledSession = true;
+            final double screenWidth = MediaQuery.of(context).size.width;
+            const double itemWidth = 92.0;
+            const double itemMargin = 10.0;
+            const double paddingLeft = 16.0;
+            
+            final double targetOffset = (paddingLeft + (_selectedIndex * (itemWidth + itemMargin)) + (itemWidth / 2)) - (screenWidth / 2);
+            final double maxScroll = _scrollController.position.maxScrollExtent;
+            final double minScroll = _scrollController.position.minScrollExtent;
+            
+            _scrollController.animateTo(
+              targetOffset.clamp(minScroll, maxScroll),
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeOutCubic,
+            );
+          }
+        });
+      }
     }
 
     DayPlan? selectedDayPlan;
@@ -159,9 +183,9 @@ class _MealsTabState extends State<MealsTab> {
                   _buildHeader(context, colorScheme),
                   const SizedBox(height: 24),
                   _buildWeekSplit(context, weeklyDays, colorScheme, progressProvider, getUniqueMealId),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
                   _buildScannerButton(context, colorScheme),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 32),
                   _buildMealsSection(context, selectedDayPlan, meals, colorScheme, progressProvider, getUniqueMealId),
                   const SizedBox(height: 16),
                   _buildSummaryCard(context, currentCalories, targetCalories, currentProtein, targetProtein, currentCarbs, targetCarbs, colorScheme),
@@ -190,7 +214,9 @@ class _MealsTabState extends State<MealsTab> {
         Text(
           'Your personalized AI-generated meal plan',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: colorScheme.onSurface.withValues(alpha: 0.70),
+            color: colorScheme.onSurface.withValues(alpha: 0.4),
+            fontWeight: FontWeight.w300,
+            fontStyle: FontStyle.italic,
           ),
         ),
       ],
@@ -221,14 +247,16 @@ class _MealsTabState extends State<MealsTab> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'This Week’s Plan',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: colorScheme.onSurface,
+          'This Week’s Plan'.toUpperCase(),
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.w900,
+            color: colorScheme.onSurface.withValues(alpha: 0.5),
+            letterSpacing: 1.2,
           ),
         ),
         const SizedBox(height: 16),
         SingleChildScrollView(
+          key: const PageStorageKey('meals_days_scroll'),
           scrollDirection: Axis.horizontal,
           controller: _scrollController,
           child: Row(
@@ -245,12 +273,29 @@ class _MealsTabState extends State<MealsTab> {
                         color: i == _selectedIndex ? colorScheme.primary.withValues(alpha: 0.12) : colorScheme.surface,
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(
-                          color: i == _selectedIndex ? colorScheme.primary : colorScheme.outline,
-                          width: 1.0,
+                          color: i == _selectedIndex 
+                              ? colorScheme.primary 
+                              : (weeklyDays[i].dayOfWeek == DateTime.now().weekday 
+                                  ? colorScheme.primary.withValues(alpha: 0.3) 
+                                  : colorScheme.outline),
+                          width: i == _selectedIndex ? 2.0 : 1.0,
                         ),
                       ),
                       child: Column(
                         children: [
+                          if (weeklyDays[i].dayOfWeek == DateTime.now().weekday)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Text(
+                                'TODAY',
+                                style: TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w900,
+                                  color: colorScheme.primary,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
                           Text(
                             getWeekday(weeklyDays[i]),
                             style: Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -259,19 +304,12 @@ class _MealsTabState extends State<MealsTab> {
                             ),
                           ),
                           const SizedBox(height: 6),
-                          TweenAnimationBuilder<double>(
-                            tween: Tween<double>(begin: 0, end: (weeklyDays[i].targetCalories ?? 0).toDouble()),
-                            duration: const Duration(milliseconds: 800),
-                            curve: Curves.easeOutCubic,
-                            builder: (context, kcal, child) {
-                              return Text(
-                                '${kcal.toInt()} kcal',
-                                textAlign: TextAlign.center,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: colorScheme.onSurface.withOpacity(0.65),
-                                ),
-                              );
-                            },
+                          Text(
+                            '${(weeklyDays[i].targetCalories ?? 0).toInt()} kcal',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurface.withOpacity(0.65),
+                            ),
                           ),
                           const SizedBox(height: 8),
                           TweenAnimationBuilder<double>(
@@ -351,10 +389,11 @@ class _MealsTabState extends State<MealsTab> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Today’s Meals',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: colorScheme.onSurface,
+          'Today’s Meals'.toUpperCase(),
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.w900,
+            color: colorScheme.onSurface.withValues(alpha: 0.5),
+            letterSpacing: 1.2,
           ),
         ),
         const SizedBox(height: 16),

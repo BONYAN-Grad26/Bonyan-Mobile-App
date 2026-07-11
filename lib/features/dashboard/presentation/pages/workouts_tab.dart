@@ -15,6 +15,7 @@ class WorkoutsTab extends StatefulWidget {
 class _WorkoutsTabState extends State<WorkoutsTab> {
   DateTime _selectedDate = DateTime.now();
   bool _isGenerating = false;
+  static bool _hasInitialScrolledSession = false;
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -48,6 +49,27 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
       await Future.wait(futures.map((f) => f.catchError((e) {
         debugPrint('Workout background load error: $e');
       })));
+    }
+  }
+
+  void _performInitialScroll() {
+    if (!_hasInitialScrolledSession && _scrollController.hasClients) {
+      _hasInitialScrolledSession = true;
+      final double screenWidth = MediaQuery.of(context).size.width;
+      const double itemWidth = 92.0;
+      const double itemMargin = 10.0;
+      
+      final int todayIndex = DateTime.now().weekday - 1; // 0-6 for Mon-Sun
+      
+      final double targetOffset = ((todayIndex * (itemWidth + itemMargin)) + (itemWidth / 2)) - (screenWidth / 2);
+      final double maxScroll = _scrollController.position.maxScrollExtent;
+      final double minScroll = _scrollController.position.minScrollExtent;
+      
+      _scrollController.animateTo(
+        targetOffset.clamp(minScroll, maxScroll),
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeOutCubic,
+      );
     }
   }
 
@@ -137,6 +159,10 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
       displayWorkouts.add(selectedWorkoutDay);
     }
 
+    if (!workoutProvider.isLoading && currentPlan != null && !_hasInitialScrolledSession) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _performInitialScroll());
+    }
+
     return RefreshIndicator(
       onRefresh: () => _loadData(true),
       displacement: 40,
@@ -151,13 +177,13 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
                   _buildHeader(context, colorScheme),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
                   _buildScannerButton(context, colorScheme),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
                   _buildWeekSplit(context, weeklySchedule, colorScheme, progressProvider, getWeekdayName, getShortWeekday),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
                   _buildWorkoutList(context, displayWorkouts, currentPlan, colorScheme, progressProvider),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
                   _buildStatsCard(context, displayWorkouts, progressProvider, colorScheme),
                   const SizedBox(height: 120), // Padding for nav bar
                 ]),
@@ -178,7 +204,9 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
         Text(
           'Your AI-powered personalized training program',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: colorScheme.onSurface.withValues(alpha: 0.70),
+            color: colorScheme.onSurface.withValues(alpha: 0.4),
+            fontWeight: FontWeight.w300,
+            fontStyle: FontStyle.italic,
           ),
         ),
       ],
@@ -211,9 +239,17 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('This Week’s Split', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        Text(
+          'This Week’s Split'.toUpperCase(),
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.w900,
+            color: colorScheme.onSurface.withValues(alpha: 0.5),
+            letterSpacing: 1.2,
+          ),
+        ),
         const SizedBox(height: 16),
         SingleChildScrollView(
+          key: const PageStorageKey('workout_days_scroll'),
           scrollDirection: Axis.horizontal,
           controller: _scrollController,
           child: Row(
@@ -224,6 +260,7 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
                   final dayDate = startOfWeek.add(Duration(days: i));
                   final dayName = getWeekdayName(dayDate);
                   final isSelected = dayDate.year == _selectedDate.year && dayDate.month == _selectedDate.month && dayDate.day == _selectedDate.day;
+                  final isToday = dayDate.year == DateTime.now().year && dayDate.month == DateTime.now().month && dayDate.day == DateTime.now().day;
                   final wDay = weeklySchedule[dayName];
                   final isRest = wDay == null || wDay.exercises == null || wDay.exercises!.isEmpty;
                   final isDone = isRest || progressProvider.isWorkoutCompleted((wDay.session ?? 'Workout').hashCode);
@@ -238,10 +275,28 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
                         decoration: BoxDecoration(
                           color: isSelected ? colorScheme.primary.withValues(alpha: 0.12) : colorScheme.surface,
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: isSelected ? colorScheme.primary : colorScheme.outline),
+                          border: Border.all(
+                            color: isSelected 
+                                ? colorScheme.primary 
+                                : (isToday ? colorScheme.primary.withValues(alpha: 0.3) : colorScheme.outline),
+                            width: isSelected ? 2.0 : 1.0,
+                          ),
                         ),
                         child: Column(
                           children: [
+                            if (isToday)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 4),
+                                child: Text(
+                                  'TODAY',
+                                  style: TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w900,
+                                    color: colorScheme.primary,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ),
                             Text(getShortWeekday(dayDate), style: const TextStyle(fontWeight: FontWeight.bold)),
                             const SizedBox(height: 8),
                             Icon(isDone ? Icons.check_circle : Icons.circle_outlined, size: 16, color: colorScheme.primary),
@@ -369,7 +424,14 @@ class _WorkoutsTabState extends State<WorkoutsTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Today’s Progress', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+          Text(
+            'Today’s Progress'.toUpperCase(),
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w900,
+              color: colorScheme.onSurface.withValues(alpha: 0.5),
+              letterSpacing: 1.2,
+            ),
+          ),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,

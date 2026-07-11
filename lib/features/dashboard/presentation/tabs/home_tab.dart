@@ -379,10 +379,11 @@ class _HomeTabState extends State<HomeTab> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'This Week’s Progress',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
+                    'This Week’s Progress'.toUpperCase(),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: colorScheme.onSurface.withValues(alpha: 0.5),
+                      letterSpacing: 1.2,
                     ),
                   ),
                   const SizedBox(height: 16), // Added whitespace under the title
@@ -449,10 +450,11 @@ class _HomeTabState extends State<HomeTab> {
 
                   const SizedBox(height: 24),
                   Text(
-                    'Next Up',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: colorScheme.onSurface,
+                    'Next Up'.toUpperCase(),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: colorScheme.onSurface.withValues(alpha: 0.5),
+                      letterSpacing: 1.2,
                     ),
                   ),
                   const SizedBox(height: 14),
