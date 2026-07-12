@@ -20,13 +20,9 @@ class _MealSuggesterSheetState extends State<MealSuggesterSheet> {
   final List<String> _cuisines = [
     'No preference',
     'Egyptian',
-    'Middle Eastern',
-    'Mediterranean',
     'Italian',
     'Asian',
     'Indian',
-    'Mexican',
-    'American'
   ];
 
   final List<String> _mealTypes = ['Main meal', 'Snack'];
@@ -203,6 +199,19 @@ class _MealSuggesterSheetState extends State<MealSuggesterSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text('Detected Ingredients:', style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: meal.detectedIngredients.map((i) => Chip(
+                label: Text(i),
+                backgroundColor: colorScheme.secondaryContainer,
+                labelStyle: TextStyle(color: colorScheme.onSecondaryContainer, fontSize: 12),
+                padding: EdgeInsets.zero,
+              )).toList(),
+            ),
+            const Divider(height: 32),
             Text('Suggested Meal', style: TextStyle(color: colorScheme.primary, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Text(meal.name, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),

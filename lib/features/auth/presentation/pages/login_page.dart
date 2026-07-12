@@ -256,8 +256,8 @@ class _LoginPageState extends State<LoginPage> {
                               width: double.infinity,
                               height: 50,
                               child: OutlinedButton(
-                                onPressed: () {
-                                  // TODO: Implement Google Sign In
+                                onPressed: isLoading ? null : () {
+                                  context.read<AuthProvider>().signInWithGoogle();
                                 },
                                 style: OutlinedButton.styleFrom(
                                   shape: RoundedRectangleBorder(
@@ -284,6 +284,7 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                   ],
                                 ),
+
                               ),
                             ),
                             const SizedBox(height: 4),

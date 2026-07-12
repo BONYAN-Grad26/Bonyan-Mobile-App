@@ -68,7 +68,13 @@ class ApiClient {
     try {
       final decoded = jsonDecode(body);
       if (decoded is Map) {
-        final msg = decoded['message']?.toString();
+        String? msg;
+        if (decoded['error'] is Map) {
+          msg = decoded['error']['message']?.toString();
+        } else {
+          msg = decoded['message']?.toString();
+        }
+
         if (msg != null && msg.isNotEmpty) {
           // If the message is a massive stack trace or java exception, fallback to generic
           if (msg.contains('Exception') || msg.length > 150) {

@@ -97,6 +97,13 @@ class AuthRepository {
     }
 
     if (data is Map<String, dynamic>) {
+      if (data['error'] is Map) {
+        final nestedMsg = data['error']['message'];
+        if (nestedMsg is String && nestedMsg.trim().isNotEmpty) {
+          return nestedMsg;
+        }
+      }
+
       final message = data['message'] ?? data['error'] ?? data['details'];
       if (message is String && message.trim().isNotEmpty) {
         return message;
@@ -104,6 +111,12 @@ class AuthRepository {
     }
 
     if (error.message != null && error.message!.trim().isNotEmpty) {
+      if (error.message!.length > 100) {
+        if (statusCode == 401 || statusCode == 403) {
+          return 'Invalid credentials or access denied.';
+        }
+        return 'Request failed with status code $statusCode.';
+      }
       return error.message!;
     }
 

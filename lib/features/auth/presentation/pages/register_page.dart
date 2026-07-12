@@ -253,8 +253,11 @@ class _RegisterPageState extends State<RegisterPage> {
                               width: double.infinity,
                               height: 50,
                               child: OutlinedButton(
-                                onPressed: () {
-                                  // TODO: Implement Google Sign In
+                                onPressed: isLoading ? null : () async {
+                                  final success = await context.read<AuthProvider>().signInWithGoogle();
+                                  if (success && context.mounted) {
+                                    Navigator.of(context).pop();
+                                  }
                                 },
                                 style: OutlinedButton.styleFrom(
                                   shape: RoundedRectangleBorder(

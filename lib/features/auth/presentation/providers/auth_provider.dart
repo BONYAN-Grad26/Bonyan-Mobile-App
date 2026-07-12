@@ -1,5 +1,7 @@
+import 'dart:io';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/foundation.dart';
-
+import 'package:flutter/widgets.dart';
 import '../../../../core/utils/secure_storage_service.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
@@ -209,6 +211,108 @@ class AuthProvider extends ChangeNotifier {
       _status = AuthStatus.unauthenticated;
       _errorMessage = null;
       notifyListeners();
+    }
+  }
+  Future<bool> signInWithGoogle() async {
+    _status = AuthStatus.loading;
+    _errorMessage = null;
+    notifyListeners();
+
+    HttpServer? server;
+    AppLifecycleListener? lifecycleListener;
+    try {
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 3000);
+
+      lifecycleListener = AppLifecycleListener(
+        onResume: () {
+          Future.delayed(const Duration(seconds: 1), () {
+            if (server != null) {
+              server?.close(force: true);
+            }
+          });
+        },
+      );
+
+      final baseUrl = const String.fromEnvironment('API_BASE_URL', defaultValue: 'http://localhost:8080');
+      final authUrl = Uri.parse('$baseUrl/oauth2/authorization/google');
+      
+      if (!await launchUrl(authUrl, mode: LaunchMode.externalApplication)) {
+        throw Exception('Could not launch browser for Google Sign-In.');
+      }
+
+      HttpRequest? authRequest;
+      await for (final request in server) {
+        if (request.uri.path == '/api/auth/callback') {
+          authRequest = request;
+          break;
+        } else {
+          request.response
+            ..statusCode = HttpStatus.notFound
+            ..close();
+        }
+      }
+      
+      if (authRequest == null) {
+        throw Exception('Did not receive callback from Google Sign-In.');
+      }
+
+      final token = authRequest.uri.queryParameters['token'];
+      
+      if (token == null || token.isEmpty) {
+        authRequest.response
+          ..statusCode = HttpStatus.badRequest
+          ..headers.contentType = ContentType.html
+          ..write('<html><body><h1>Login Failed</h1><p>No token received.</p></body></html>');
+        await authRequest.response.close();
+        throw Exception('No token received from Google Sign-In.');
+      }
+
+      authRequest.response
+        ..statusCode = HttpStatus.ok
+        ..headers.contentType = ContentType.html
+        ..write('<html><body style="font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background-color: #f7fff7;">'
+                '<div style="text-align: center;">'
+                '<h1 style="color: #2e7d32;">Login Successful!</h1>'
+                '<p>You can close this tab and return to the Bonyaan app.</p>'
+                '</div></body></html>');
+      await authRequest.response.close();
+
+      await _tokenStorage.saveAccessToken(token);
+      await _secureStorage.saveAccessToken(token);
+      
+      String email = 'Google User';
+      try {
+        final parts = token.split('.');
+        if (parts.length == 3) {
+          final payload = parts[1];
+          final normalized = base64Url.normalize(payload);
+          final resp = utf8.decode(base64Url.decode(normalized));
+          final payloadMap = json.decode(resp);
+          if (payloadMap.containsKey('sub')) {
+            email = payloadMap['sub'];
+          }
+        }
+      } catch (e) {
+        // ignore jwt parsing error
+      }
+      
+      _currentUser = UserModel(email: email, firstName: '', lastName: '');
+      
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('cached_current_user', jsonEncode(_currentUser!.toJson()));
+
+      _status = AuthStatus.authenticated;
+      notifyListeners();
+      return true;
+
+    } catch (e) {
+      _status = AuthStatus.unauthenticated;
+      _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      notifyListeners();
+      return false;
+    } finally {
+      lifecycleListener?.dispose();
+      await server?.close(force: true);
     }
   }
 }

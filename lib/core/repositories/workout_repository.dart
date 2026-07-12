@@ -16,7 +16,7 @@ class WorkoutRepository {
   /// Throws [ApiException] on error
   Future<WorkoutPlan> generateWeeklyPlan() async {
     try {
-      final response = await apiClient.post('/workout-plan/generate-weekly');
+      final response = await apiClient.post('/api/workout-plan/generate-weekly');
 
       if (response == null) {
         throw ApiErrorException(
@@ -48,7 +48,7 @@ class WorkoutRepository {
   /// Throws [ApiException] on error
   Future<WorkoutPlan> getById(int id) async {
     try {
-      final response = await apiClient.get('/workout-plan/$id');
+      final response = await apiClient.get('/api/workout-plan/$id');
 
       if (response == null) {
         throw ApiErrorException(
@@ -76,7 +76,7 @@ class WorkoutRepository {
   /// Throws [ApiException] on error
   Future<List<WorkoutPlan>> getUserWorkouts(int userId) async {
     try {
-      final response = await apiClient.get('/workout-plan/user/$userId');
+      final response = await apiClient.get('/api/workout-plan/user/$userId');
 
       if (response == null) {
         throw ApiErrorException(
@@ -128,7 +128,7 @@ class WorkoutRepository {
   /// Throws [ApiException] on error
   Future<WorkoutPlan> getMyWorkout() async {
     try {
-      final response = await apiClient.get('/workout-plan/user/me');
+      final response = await apiClient.get('/api/workout-plan/user/me');
 
       if (response == null) {
         throw ApiErrorException(
@@ -181,7 +181,7 @@ class WorkoutRepository {
   /// Throws [ApiException] on error
   Future<TodayWorkout> getTodayWorkout() async {
     try {
-      final response = await apiClient.get('/workout-plan/today');
+      final response = await apiClient.get('/api/workout-plan/today');
 
       if (response == null) {
         throw ApiErrorException(
@@ -216,7 +216,7 @@ class WorkoutRepository {
   /// Throws [ApiException] on error
   Future<String> deleteWorkout(int id) async {
     try {
-      final response = await apiClient.delete('/workout-plan/$id');
+      final response = await apiClient.delete('/api/workout-plan/$id');
 
       // Handle response - typically returns a string message or Map with message
       if (response is String) {
